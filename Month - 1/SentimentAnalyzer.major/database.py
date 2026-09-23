@@ -1,8 +1,7 @@
 """
 database.py
-Handles all SQLite database setup and queries for the Sentiment Dashboard.
-SQLite is used because it needs zero configuration, zero cost, and no
-separate database server - ideal for a lightweight, fully free deployment.
+SQLite database interface for storing products and customer reviews with platform details.
+Includes automatic schema migration.
 """
 
 import sqlite3
@@ -19,7 +18,7 @@ def get_connection():
 
 
 def init_db():
-    """Create tables if they do not already exist."""
+    """Create tables if they do not exist and apply schema migrations."""
     conn = get_connection()
     cur = conn.cursor()
 
@@ -38,20 +37,32 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             product_id INTEGER NOT NULL,
             review_text TEXT NOT NULL,
+            review_title TEXT,
             rating REAL,
             review_date TEXT,
             sentiment_label TEXT,
             sentiment_score REAL,
+            platform TEXT DEFAULT 'Amazon',
             created_at TEXT NOT NULL,
             FOREIGN KEY (product_id) REFERENCES products (id)
         )
     """)
 
+    # Schema Migrations for existing databases
+    cur.execute("PRAGMA table_info(reviews)")
+    existing_cols = [row["name"] for row in cur.fetchall()]
+
+    if "platform" not in existing_cols:
+        cur.execute("ALTER TABLE reviews ADD COLUMN platform TEXT DEFAULT 'Amazon'")
+
+    if "review_title" not in existing_cols:
+        cur.execute("ALTER TABLE reviews ADD COLUMN review_title TEXT")
+
     conn.commit()
     conn.close()
 
 
-def insert_product(name, source, url=None):
+def insert_product(name, source="both", url=None):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
@@ -64,12 +75,12 @@ def insert_product(name, source, url=None):
     return product_id
 
 
-def find_product(name, source):
+def find_product(name, source="both"):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
-        "SELECT * FROM products WHERE LOWER(name) = LOWER(?) AND source = ? ORDER BY created_at DESC LIMIT 1",
-        (name, source)
+        "SELECT * FROM products WHERE LOWER(name) = LOWER(?) ORDER BY created_at DESC LIMIT 1",
+        (name,)
     )
     row = cur.fetchone()
     conn.close()
@@ -94,26 +105,33 @@ def list_products():
     return [dict(r) for r in rows]
 
 
+def delete_product(product_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM reviews WHERE product_id = ?", (product_id,))
+    cur.execute("DELETE FROM products WHERE id = ?", (product_id,))
+    conn.commit()
+    conn.close()
+
+
 def insert_reviews(product_id, reviews):
-    """
-    reviews: list of dicts with keys:
-        review_text, rating, review_date, sentiment_label, sentiment_score
-    """
     conn = get_connection()
     cur = conn.cursor()
     now = datetime.utcnow().isoformat()
     for r in reviews:
         cur.execute("""
             INSERT INTO reviews
-            (product_id, review_text, rating, review_date, sentiment_label, sentiment_score, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (product_id, review_text, review_title, rating, review_date, sentiment_label, sentiment_score, platform, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             product_id,
             r.get("review_text"),
+            r.get("review_title", "Customer Review"),
             r.get("rating"),
             r.get("review_date"),
             r.get("sentiment_label"),
             r.get("sentiment_score"),
+            r.get("platform", "Amazon"),
             now
         ))
     conn.commit()

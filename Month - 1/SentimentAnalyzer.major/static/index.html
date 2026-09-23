@@ -1,127 +1,314 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Review Sentiment Dashboard</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Commerce Sentiment Analyzer | Amazon & Flipkart</title>
+  
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="frame">
+  <!-- Ambient Glow Background -->
+  <div class="bg-glow glow-1"></div>
+  <div class="bg-glow glow-2"></div>
 
-  <aside class="sidebar">
-    <div class="brand">
-      <span class="brand-mark">&#9679;</span>
-      <span class="brand-name">Sentiment Desk</span>
-    </div>
+  <div class="app-layout">
 
-    <form id="search-form" class="search-form">
-      <label for="product-name">Product name</label>
-      <input type="text" id="product-name" placeholder="e.g. Wireless Earbuds X200" required>
-
-      <label for="source-select">Review source</label>
-      <select id="source-select">
-        <option value="demo">Sample data (instant demo)</option>
-        <option value="url">Scrape a product page URL</option>
-      </select>
-
-      <div id="url-field" class="hidden">
-        <label for="product-url">Page URL</label>
-        <input type="url" id="product-url" placeholder="https://...">
+    <!-- Sidebar Navigation & History -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-brain-circuit"></i>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">SentimentIQ</span>
+          <span class="brand-tag">Product Review Engine</span>
+        </div>
       </div>
 
-      <button type="submit" id="search-btn">Analyze reviews</button>
-      <p class="hint">Sample data generates realistic reviews instantly so you can explore the dashboard. Scraping works on pages that render reviews as plain HTML.</p>
-    </form>
-
-    <div class="history">
-      <h3>Previously analyzed</h3>
-      <ul id="product-list"></ul>
-    </div>
-  </aside>
-
-  <main class="main">
-
-    <div id="empty-state" class="empty-state">
-      <h1>Search a product to see how customers feel about it</h1>
-      <p>Type a product name on the left and run an analysis. You'll get a sentiment breakdown, a trend over time, and the words that show up most in the reviews.</p>
-    </div>
-
-    <div id="dashboard" class="dashboard hidden">
-
-      <section class="hero">
-        <div class="hero-score">
-          <span id="hero-percent" class="hero-number">--%</span>
-          <span class="hero-label">positive reviews</span>
-        </div>
-        <div class="hero-meta">
-          <h1 id="hero-product-name">Product name</h1>
-          <div class="hero-stats">
-            <div class="stat">
-              <span class="stat-value" id="stat-total">--</span>
-              <span class="stat-label">reviews analyzed</span>
-            </div>
-            <div class="stat">
-              <span class="stat-value" id="stat-rating">--</span>
-              <span class="stat-label">average rating</span>
-            </div>
-            <div class="stat">
-              <span class="stat-value" id="stat-negative">--</span>
-              <span class="stat-label">negative reviews</span>
+      <div class="sidebar-section">
+        <h3><i class="fa-solid fa-magnifying-glass"></i> Analyze New Product</h3>
+        <form id="search-form" class="search-form">
+          <div class="input-group">
+            <label for="product-query">Product Name or URL</label>
+            <div class="input-wrapper">
+              <i class="fa-solid fa-cube input-icon"></i>
+              <input type="text" id="product-query" placeholder="e.g. Sony WH-1000XM5 or Amazon/Flipkart URL" required>
             </div>
           </div>
-        </div>
-      </section>
 
-      <section class="grid">
-
-        <div class="panel">
-          <h2>Sentiment distribution</h2>
-          <canvas id="chart-distribution"></canvas>
-        </div>
-
-        <div class="panel">
-          <h2>Sentiment trend over time</h2>
-          <canvas id="chart-trend"></canvas>
-        </div>
-
-        <div class="panel panel-wide">
-          <h2>Frequently used terms</h2>
-          <canvas id="chart-words"></canvas>
-        </div>
-
-      </section>
-
-      <section class="reviews-section">
-        <div class="reviews-header">
-          <h2>Individual reviews</h2>
-          <div class="filter-group" id="filter-group">
-            <button class="filter-btn active" data-filter="all">All</button>
-            <button class="filter-btn" data-filter="positive">Positive</button>
-            <button class="filter-btn" data-filter="neutral">Neutral</button>
-            <button class="filter-btn" data-filter="negative">Negative</button>
+          <div class="input-group">
+            <label>Target Platforms</label>
+            <div class="platform-selector">
+              <button type="button" class="platform-btn active" data-platform="both">
+                <i class="fa-solid fa-globe"></i> Both
+              </button>
+              <button type="button" class="platform-btn" data-platform="amazon">
+                <i class="fa-brands fa-amazon text-amazon"></i> Amazon
+              </button>
+              <button type="button" class="platform-btn" data-platform="flipkart">
+                <i class="fa-solid fa-bag-shopping text-flipkart"></i> Flipkart
+              </button>
+            </div>
           </div>
+
+          <button type="submit" id="search-btn" class="btn-primary">
+            <i class="fa-solid fa-bolt"></i> Run Live Analysis
+          </button>
+        </form>
+      </div>
+
+      <div class="sidebar-section history-section">
+        <div class="history-header">
+          <h3><i class="fa-solid fa-clock-rotate-left"></i> Analysis History</h3>
+          <span id="history-count" class="badge">0</span>
         </div>
-        <ul id="reviews-list" class="reviews-list"></ul>
-      </section>
+        <ul id="product-list" class="history-list">
+          <!-- Dynamic History Items -->
+        </ul>
+      </div>
+    </aside>
 
-    </div>
+    <!-- Main Workspace -->
+    <main class="main-content">
 
-    <div id="loading" class="loading hidden">
-      <div class="spinner"></div>
-      <p>Collecting and analyzing reviews...</p>
-    </div>
+      <!-- Top Control Header -->
+      <header class="top-header">
+        <div class="header-status">
+          <span class="status-dot"></span>
+          <span class="status-text">Live Scraper Engine Active</span>
+        </div>
+        <div class="header-actions">
+          <button id="export-btn" class="btn-secondary hidden">
+            <i class="fa-solid fa-file-csv"></i> Export CSV
+          </button>
+          <button id="delete-btn" class="btn-danger hidden">
+            <i class="fa-solid fa-trash-can"></i> Clear Product
+          </button>
+        </div>
+      </header>
 
-    <div id="error-box" class="error-box hidden"></div>
+      <!-- Initial Empty State -->
+      <div id="empty-state" class="empty-state">
+        <div class="empty-illustration">
+          <i class="fa-solid fa-chart-line"></i>
+        </div>
+        <h1>Analyze Amazon & Flipkart Product Reviews</h1>
+        <p>Type any product name (e.g. <em>"boAt Rockerz 450"</em>, <em>"iPhone 15"</em>) or paste an Amazon/Flipkart product URL to run live sentiment analysis across customer reviews.</p>
+        <div class="sample-pills">
+          <span>Popular Searches:</span>
+          <button class="sample-pill" data-query="Sony WH-1000XM5 Headphones">Sony WH-1000XM5</button>
+          <button class="sample-pill" data-query="Apple iPhone 15 128GB">iPhone 15</button>
+          <button class="sample-pill" data-query="Samsung Galaxy Watch 6">Galaxy Watch 6</button>
+        </div>
+      </div>
 
-  </main>
-</div>
+      <!-- Loading State Overlay -->
+      <div id="loading" class="loading-state hidden">
+        <div class="spinner-ring"></div>
+        <h2 id="loading-title">Extracting Product Reviews...</h2>
+        <p id="loading-subtitle">Scraping customer feedback from Amazon & Flipkart</p>
+        <div class="progress-bar">
+          <div class="progress-fill"></div>
+        </div>
+      </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="script.js"></script>
+      <!-- Error State Box -->
+      <div id="error-box" class="error-box hidden">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span id="error-msg">An error occurred while fetching reviews.</span>
+      </div>
+
+      <!-- Main Dashboard View -->
+      <div id="dashboard" class="dashboard hidden">
+
+        <!-- Hero Product Header -->
+        <section class="hero-card">
+          <div class="hero-left">
+            <div class="satisfaction-gauge">
+              <svg viewBox="0 0 36 36" class="circular-chart">
+                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path id="gauge-fill" class="circle" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <text x="18" y="20.35" id="hero-percent" class="percentage">0%</text>
+              </svg>
+              <span class="gauge-label">Customer Satisfaction</span>
+            </div>
+            <div class="hero-details">
+              <div class="platform-tags" id="platform-tags">
+                <span class="tag tag-amazon"><i class="fa-brands fa-amazon"></i> Amazon</span>
+                <span class="tag tag-flipkart"><i class="fa-solid fa-bag-shopping"></i> Flipkart</span>
+              </div>
+              <h1 id="hero-product-name">Product Name</h1>
+              <p class="hero-subtitle" id="hero-collection-method">Method: Live Web Scrape</p>
+            </div>
+          </div>
+
+          <div class="hero-stats-grid">
+            <div class="stat-card">
+              <i class="fa-solid fa-comments text-cyan"></i>
+              <div class="stat-info">
+                <span class="stat-value" id="stat-total">0</span>
+                <span class="stat-label">Total Reviews</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <i class="fa-solid fa-star text-amber"></i>
+              <div class="stat-info">
+                <span class="stat-value" id="stat-rating">0.0</span>
+                <span class="stat-label">Avg Rating / 5</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <i class="fa-solid fa-face-smile text-emerald"></i>
+              <div class="stat-info">
+                <span class="stat-value" id="stat-positive">0</span>
+                <span class="stat-label">Positive Reviews</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <i class="fa-solid fa-face-frown text-rose"></i>
+              <div class="stat-info">
+                <span class="stat-value" id="stat-negative">0</span>
+                <span class="stat-label">Negative Reviews</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Platform Comparison Cards -->
+        <section class="platform-comparison-grid">
+          <div class="platform-card amazon-card">
+            <div class="platform-card-header">
+              <span><i class="fa-brands fa-amazon"></i> Amazon Metrics</span>
+              <span class="platform-badge" id="amazon-count">0 reviews</span>
+            </div>
+            <div class="platform-card-body">
+              <span class="platform-rating" id="amazon-rating">-- / 5 ★</span>
+            </div>
+          </div>
+          <div class="platform-card flipkart-card">
+            <div class="platform-card-header">
+              <span><i class="fa-solid fa-bag-shopping"></i> Flipkart Metrics</span>
+              <span class="platform-badge" id="flipkart-count">0 reviews</span>
+            </div>
+            <div class="platform-card-body">
+              <span class="platform-rating" id="flipkart-rating">-- / 5 ★</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Analytics Grid -->
+        <section class="analytics-grid">
+
+          <!-- Sentiment Breakdown Chart -->
+          <div class="chart-panel">
+            <div class="panel-header">
+              <h3><i class="fa-solid fa-chart-pie"></i> Sentiment Distribution</h3>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-distribution"></canvas>
+            </div>
+          </div>
+
+          <!-- Star Rating Distribution Chart -->
+          <div class="chart-panel">
+            <div class="panel-header">
+              <h3><i class="fa-solid fa-star-half-stroke"></i> Rating Breakdown</h3>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-ratings"></canvas>
+            </div>
+          </div>
+
+          <!-- Pros & Cons Highlights -->
+          <div class="chart-panel panel-wide">
+            <div class="panel-header">
+              <h3><i class="fa-solid fa-thumbs-up"></i> Top Highlights (Pros & Cons)</h3>
+            </div>
+            <div class="pros-cons-grid">
+              <div class="pros-column">
+                <h4><i class="fa-solid fa-circle-check text-emerald"></i> Top Customer Pros</h4>
+                <ul id="pros-list" class="highlights-list pros-list"></ul>
+              </div>
+              <div class="cons-column">
+                <h4><i class="fa-solid fa-circle-xmark text-rose"></i> Frequent Complaints (Cons)</h4>
+                <ul id="cons-list" class="highlights-list cons-list"></ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Frequently Mentioned Words -->
+          <div class="chart-panel">
+            <div class="panel-header">
+              <h3><i class="fa-solid fa-tags"></i> Top Mentioned Keywords</h3>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-words"></canvas>
+            </div>
+          </div>
+
+          <!-- Sentiment Trend Timeline -->
+          <div class="chart-panel">
+            <div class="panel-header">
+              <h3><i class="fa-solid fa-timeline"></i> Sentiment Trend Over Time</h3>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-trend"></canvas>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- Customer Reviews Explorer -->
+        <section class="reviews-section">
+          <div class="reviews-header">
+            <div>
+              <h2><i class="fa-solid fa-list-check"></i> Scraped Reviews Explorer</h2>
+              <p class="section-desc">Search and filter actual customer feedback from Amazon & Flipkart</p>
+            </div>
+
+            <div class="controls-wrapper">
+              <div class="search-reviews-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="review-search-input" placeholder="Search keywords in reviews...">
+              </div>
+
+              <div class="filter-group" id="filter-sentiment">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn filter-positive" data-filter="positive">Positive</button>
+                <button class="filter-btn filter-neutral" data-filter="neutral">Neutral</button>
+                <button class="filter-btn filter-negative" data-filter="negative">Negative</button>
+              </div>
+
+              <div class="filter-group" id="filter-platform">
+                <button class="filter-btn active" data-platform="all">All Stores</button>
+                <button class="filter-btn" data-platform="Amazon">Amazon</button>
+                <button class="filter-btn" data-platform="Flipkart">Flipkart</button>
+              </div>
+            </div>
+          </div>
+
+          <ul id="reviews-list" class="reviews-list">
+            <!-- Dynamic Review Items -->
+          </ul>
+        </section>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
