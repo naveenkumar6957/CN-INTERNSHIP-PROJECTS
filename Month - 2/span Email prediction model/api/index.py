@@ -1,6 +1,12 @@
+<<<<<<< HEAD
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
+=======
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
 from pydantic import BaseModel
 import re
 import os
@@ -8,7 +14,10 @@ import json
 import time
 import joblib
 
+<<<<<<< HEAD
 # Setup resilient NLTK stopwords handling
+=======
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
 DEFAULT_STOPWORDS = {
     'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', "you're", "you've",
     "you'll", "you'd", 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his',
@@ -74,7 +83,10 @@ SUSPICIOUS_SPAM_KEYWORDS = [
 ]
 
 def clean_text(text: str) -> str:
+<<<<<<< HEAD
     """Preprocess text identically to the training pipeline."""
+=======
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     text = re.sub(r'<[^>]+>', ' ', str(text))
     text = re.sub(r'[^a-zA-Z0-9$!%]', ' ', text)
     words = text.lower().split()
@@ -82,7 +94,10 @@ def clean_text(text: str) -> str:
     return ' '.join(stemmed) if stemmed else text.lower().strip()
 
 def load_artifacts():
+<<<<<<< HEAD
     """Load model, vectorizer, and metadata from api/ or root directory."""
+=======
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     global model, vectorizer, model_meta
     if model is not None and vectorizer is not None:
         return model, vectorizer, model_meta
@@ -90,7 +105,11 @@ def load_artifacts():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.abspath(os.path.join(base_dir, '..'))
 
+<<<<<<< HEAD
     candidate_dirs = [base_dir, root_dir]
+=======
+    candidate_dirs = [base_dir, root_dir, os.getcwd()]
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
 
     for d in candidate_dirs:
         m_path = os.path.join(d, 'model.joblib')
@@ -106,13 +125,22 @@ def load_artifacts():
                         model_meta = json.load(f)
                 else:
                     model_meta = {"accuracy": 98.20, "model_name": "Calibrated Soft-Voting Ensemble"}
+<<<<<<< HEAD
                 print(f"[API] Loaded high-accuracy model artifacts from: {d}")
+=======
+                print(f"[API] Loaded artifacts from: {d}")
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
                 return model, vectorizer, model_meta
             except Exception as e:
                 print(f"[API] Error loading artifacts from {d}: {e}")
 
+<<<<<<< HEAD
     # Fallback initialization if artifacts are somehow missing
     print("[API] Notice: Pre-trained artifacts not found on disk, training fallback model...")
+=======
+    # Fallback initialization if artifacts are not found
+    print("[API] Notice: Artifacts not found on disk, training fallback model...")
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.linear_model import LogisticRegression
 
@@ -134,6 +162,7 @@ def load_artifacts():
     model_meta = {"accuracy": 95.0, "model_name": "Fallback Model", "total_samples": 8}
     return model, vectorizer, model_meta
 
+<<<<<<< HEAD
 # Pre-load on startup
 load_artifacts()
 
@@ -143,10 +172,16 @@ class EmailRequest(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 def serve_index():
     """Serve the web application dashboard on root GET requests."""
+=======
+load_artifacts()
+
+def get_index_html_content() -> str:
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     base_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.abspath(os.path.join(base_dir, '..'))
 
     candidates = [
+<<<<<<< HEAD
         os.path.join(root_dir, 'index.html'),
         os.path.join(base_dir, 'index.html'),
         'index.html'
@@ -159,6 +194,37 @@ def serve_index():
     return HTMLResponse("<h1>SpamGuard AI API is Running</h1><p>index.html not found in root directory.</p>")
 
 @app.get("/api/health")
+=======
+        os.path.join(base_dir, 'index.html'),
+        os.path.join(root_dir, 'index.html'),
+        'index.html',
+        'api/index.html'
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            try:
+                with open(p, 'r', encoding='utf-8') as f:
+                    return f.read()
+            except Exception:
+                pass
+    return "<h1>SpamGuard AI Application</h1><p>Web dashboard is ready. Upload or paste email text to evaluate threat.</p>"
+
+class EmailRequest(BaseModel):
+    text: str
+
+# Multiple route handlers for Root / Index to prevent 404 on Vercel
+@app.get("/", response_class=HTMLResponse)
+@app.get("/index.html", response_class=HTMLResponse)
+@app.get("/index.py", response_class=HTMLResponse)
+@app.get("/api", response_class=HTMLResponse)
+@app.get("/api/", response_class=HTMLResponse)
+@app.get("/api/index.py", response_class=HTMLResponse)
+def serve_index():
+    return HTMLResponse(content=get_index_html_content())
+
+@app.get("/api/health")
+@app.get("/health")
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
 def health():
     clf, vec, meta = load_artifacts()
     return {
@@ -170,6 +236,10 @@ def health():
     }
 
 @app.get("/api/model-info")
+<<<<<<< HEAD
+=======
+@app.get("/model-info")
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
 def get_model_info():
     clf, vec, meta = load_artifacts()
     return {
@@ -178,6 +248,10 @@ def get_model_info():
     }
 
 @app.post("/api/predict")
+<<<<<<< HEAD
+=======
+@app.post("/predict")
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
 def predict_email(payload: EmailRequest):
     if not payload.text or not payload.text.strip():
         raise HTTPException(status_code=400, detail="Email content cannot be empty.")
@@ -186,12 +260,18 @@ def predict_email(payload: EmailRequest):
     raw_text = payload.text
     clf, vec, meta = load_artifacts()
 
+<<<<<<< HEAD
     # Preprocessing
+=======
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     cleaned = clean_text(raw_text)
     if not cleaned:
         cleaned = raw_text.lower().strip()
 
+<<<<<<< HEAD
     # Feature transformation & prediction
+=======
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     vec_text = vec.transform([cleaned])
     prediction = int(clf.predict(vec_text)[0])
     probabilities = clf.predict_proba(vec_text)[0]
@@ -200,14 +280,20 @@ def predict_email(payload: EmailRequest):
     ham_prob = round(float(probabilities[0]) * 100, 2)
     confidence = round(float(probabilities[prediction]) * 100, 2)
 
+<<<<<<< HEAD
     # Detect trigger words
+=======
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     raw_lower = raw_text.lower()
     detected_triggers = []
     for kw in SUSPICIOUS_SPAM_KEYWORDS:
         if kw in raw_lower:
             detected_triggers.append(kw)
 
+<<<<<<< HEAD
     # Symbol counts
+=======
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     dollar_count = raw_text.count('$')
     exclamation_count = raw_text.count('!')
     if dollar_count > 0:
@@ -215,7 +301,10 @@ def predict_email(payload: EmailRequest):
     if exclamation_count >= 2:
         detected_triggers.append(f"{exclamation_count} exclamation marks")
 
+<<<<<<< HEAD
     # Risk Tiering
+=======
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     if spam_prob >= 85:
         risk_level = "CRITICAL"
         risk_color = "rose"
@@ -257,3 +346,13 @@ def predict_email(payload: EmailRequest):
             "trained_samples": meta.get("total_samples", 11396)
         }
     }
+<<<<<<< HEAD
+=======
+
+# Catch-all route to serve index.html for any unmapped non-API GET request
+@app.get("/{full_path:path}")
+def catch_all(full_path: str):
+    if full_path.startswith("api/"):
+        return JSONResponse(status_code=404, content={"detail": f"API endpoint '/{full_path}' not found."})
+    return HTMLResponse(content=get_index_html_content())
+>>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)

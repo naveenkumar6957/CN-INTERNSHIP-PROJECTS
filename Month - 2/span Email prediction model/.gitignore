@@ -1,0 +1,21 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+nltk_data/
+
+# Datasets and extracted archives (large files)
+archive*/
+dataset/
+*.zip
+*.csv
+
+# OS files
+.DS_Store
+Thumbs.db
