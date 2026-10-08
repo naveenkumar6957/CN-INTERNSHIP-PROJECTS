@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-10-08T18:00:08.250929",
+  "model_name": "Calibrated Soft-Voting Ensemble (LinearSVC + LogisticRegression + NaiveBayes)",
+  "accuracy": 98.2,
+  "precision": 97.31,
+  "recall": 94.38,
+  "f1_score": 95.82,
+  "roc_auc": 99.47,
+  "confusion_matrix": {
+    "true_negative": 1768,
+    "false_positive": 13,
+    "false_negative": 28,
+    "true_positive": 470
+  },
+  "total_samples": 11394,
+  "train_samples": 9115,
+  "test_samples": 2279,
+  "dataset_breakdown": {
+    "dataset_1_emails": 5728,
+    "dataset_2_mail_data": 5572,
+    "dataset_3_spambase": 3036
+  },
+  "features_count": 25000
+}
