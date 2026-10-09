@@ -618,13 +618,13 @@
     async function classifyEmail() {
       const text = emailText.value.trim();
       if (!text) {
-        alert('Please enter or drag-and-drop email content first.');
+        showErrorUI('Email content cannot be empty. Please enter or drag-and-drop an email to classify.');
         return;
       }
 
       const btn = document.getElementById('classify-btn');
       btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i><span>Analyzing with ML Ensemble...</span>';
+      btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin mr-2"></i><span>Analyzing with ML Ensemble...</span>';
 
       const tStart = performance.now();
 
@@ -636,7 +636,9 @@
         });
 
         if (!response.ok) {
-          throw new Error(`API returned status ${response.status}`);
+          const errData = await response.json().catch(() => ({}));
+          const errMsg = errData.detail || `API request failed with HTTP ${response.status}`;
+          throw new Error(errMsg);
         }
 
         const data = await response.json();
@@ -645,53 +647,49 @@
         updateUI(data);
         updateStats(data.status);
       } catch (err) {
-        console.warn('Backend API offline or unreachable, executing local high-precision evaluation:', err);
-        document.getElementById('backend-indicator').innerText = 'Local Evaluation Engine';
-        document.getElementById('backend-dot').className = 'w-2 h-2 rounded-full bg-amber-400';
-
-        const latency = (performance.now() - tStart).toFixed(1);
-        const simData = evaluateLocally(text, latency);
-        updateUI(simData);
-        updateStats(simData.status);
+        console.error('Inference error:', err);
+        document.getElementById('backend-indicator').innerText = 'API Connection Error';
+        document.getElementById('backend-dot').className = 'w-2 h-2 rounded-full bg-rose-400';
+        showErrorUI(err.message || 'Failed to communicate with prediction service.');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i><span>Analyze & Classify Email</span>';
+        btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-2"></i><span>Analyze & Classify Email</span>';
       }
     }
 
-    function evaluateLocally(text, latency) {
-      const lower = text.toLowerCase();
-      const spamKeywords = [
-        'win', 'won', 'lottery', 'prize', 'free', 'money', 'cash', 'urgent', 'suspended', 
-        'verify', 'click here', 'password', 'credit', 'claim', 'congratulations', 
-        'exclusive offer', 'bonus', 'rolex', 'drug', 'pharmacy', 'wire transfer', 
-        'selected', 'sweepstakes', 'unauthorized', 'bitcoin', 'crypto', 'guaranteed'
-      ];
+    function showErrorUI(errorMessage) {
+      document.getElementById('result-placeholder').classList.add('hidden');
+      document.getElementById('result-content').classList.remove('hidden');
+      document.getElementById('report-timestamp').innerText = new Date().toLocaleTimeString();
+      document.getElementById('latency-text').innerText = 'Error';
 
-      let hits = [];
-      spamKeywords.forEach(k => {
-        if (lower.includes(k)) hits.push(k);
-      });
+      const badge = document.getElementById('status-badge');
+      const confBar = document.getElementById('confidence-bar');
+      const recIcon = document.getElementById('recommendation-icon');
+      const recText = document.getElementById('recommendation-text');
+      const recBox = document.getElementById('recommendation-box');
+      const riskBadge = document.getElementById('risk-badge');
 
-      const dollarCount = (text.match(/\$/g) || []).length;
-      const bangCount = (text.match(/!/g) || []).length;
-      if (dollarCount > 0) hits.push(`$ symbol (${dollarCount}x)`);
-      if (bangCount >= 2) hits.push(`! mark (${bangCount}x)`);
+      badge.className = 'p-4 rounded-2xl border border-rose-500/50 bg-rose-950/40 text-rose-300 text-center font-bold text-base tracking-wide shadow-lg';
+      badge.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-2 text-rose-400"></i> ERROR: ${errorMessage}`;
 
-      const isSpam = hits.length >= 2 || (hits.length === 1 && (lower.includes('winner') || lower.includes('claim') || lower.includes('lottery') || text.length < 120));
-      let spamProb = isSpam ? Math.min(99.6, 75.0 + hits.length * 6.5) : Math.max(0.8, 12.0 - hits.length * 3);
-      let hamProb = parseFloat((100 - spamProb).toFixed(2));
-      spamProb = parseFloat(spamProb.toFixed(2));
+      confBar.className = 'h-full rounded-full bg-slate-700';
+      confBar.style.width = '0%';
+      document.getElementById('confidence-val').innerText = '0%';
 
-      return {
-        status: isSpam ? "SPAM" : "HAM",
-        confidence: isSpam ? spamProb : hamProb,
-        probabilities: { spam: spamProb, ham: hamProb },
-        risk_level: isSpam ? (spamProb > 88 ? "CRITICAL" : "HIGH") : "SAFE",
-        risk_color: isSpam ? "rose" : "emerald",
-        detected_triggers: hits.slice(0, 6),
-        latency_ms: latency
-      };
+      riskBadge.className = 'font-bold px-2.5 py-0.5 rounded-full text-[11px] bg-rose-500/15 text-rose-400 border border-rose-500/30';
+      riskBadge.innerText = 'SERVICE ERROR';
+
+      document.getElementById('prob-spam').innerText = '--%';
+      document.getElementById('prob-spam-bar').style.width = '0%';
+      document.getElementById('prob-ham').innerText = '--%';
+      document.getElementById('prob-ham-bar').style.width = '0%';
+
+      recBox.className = 'p-3.5 rounded-xl text-xs bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-start space-x-2.5';
+      recIcon.className = 'fa-solid fa-triangle-exclamation text-rose-400 mt-0.5';
+      recText.innerText = `Inference failed: ${errorMessage}. Please check API connection and server status.`;
+
+      document.getElementById('triggers-container').classList.add('hidden');
     }
 
     function updateUI(data) {
@@ -778,7 +776,10 @@
     // Ping backend on startup
     const healthUrl = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000/api/health' : '/api/health';
     fetch(healthUrl)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Health check status ' + res.status);
+        return res.json();
+      })
       .then(data => {
         if (data.status === 'healthy') {
           document.getElementById('backend-indicator').innerText = `Connected (${data.accuracy}% Accuracy)`;
@@ -786,7 +787,8 @@
         }
       })
       .catch(() => {
-        document.getElementById('backend-indicator').innerText = 'Ready (Client & API)';
+        document.getElementById('backend-indicator').innerText = 'API Connecting / Offline';
+        document.getElementById('backend-dot').className = 'w-2 h-2 rounded-full bg-amber-400';
       });
   </script>
 </body>

@@ -1,66 +1,53 @@
-<<<<<<< HEAD
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
-=======
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
-from pydantic import BaseModel
-import re
 import os
+import sys
+import re
 import json
 import time
 import joblib
+from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
 
-<<<<<<< HEAD
-# Setup resilient NLTK stopwords handling
-=======
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
-DEFAULT_STOPWORDS = {
-    'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', "you're", "you've",
-    "you'll", "you'd", 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his',
-    'himself', 'she', "she's", 'her', 'hers', 'herself', 'it', "it's", 'its', 'itself',
-    'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom',
-    'this', 'that', "that'll", 'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be',
-    'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'a',
-    'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of', 'at',
-    'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during',
-    'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on',
-    'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when',
-    'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other',
-    'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very',
-    's', 't', 'can', 'will', 'just', 'don', "don't", 'should', "should've", 'now', 'd', 'll',
-    'm', 'o', 're', 've', 'y', 'ain', 'aren', "aren't", 'couldn', "couldn't", 'didn',
-    'doesn', "doesn't", 'hadn', "hadn't", 'hasn', "hasn't", 'haven', "haven't",
-    'isn', "isn't", 'ma', 'mightn', "mightn't", 'mustn', "mustn't", 'needn', "needn't",
-    'shan', "shan't", 'shouldn', "shouldn't", 'wasn', "wasn't", 'weren', "weren't",
-    'won', "won't", 'wouldn', "wouldn't"
+# Complete standard English stopwords (179 words) to avoid cold-start network downloads
+NLTK_ENGLISH_STOPWORDS = {
+    'a', 'about', 'above', 'after', 'again', 'against', 'ain', 'all', 'am', 'an', 'and', 'any',
+    'are', 'aren', "aren't", 'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below',
+    'between', 'both', 'but', 'by', 'can', 'couldn', "couldn't", 'd', 'did', 'didn', "didn't",
+    'do', 'does', 'doesn', "doesn't", 'doing', 'don', "don't", 'down', 'during', 'each', 'few',
+    'for', 'from', 'further', 'had', 'hadn', "hadn't", 'has', 'hasn', "hasn't", 'have', 'haven',
+    "haven't", 'having', 'he', "he'd", "he'll", "he's", 'her', 'here', 'hers', 'herself', 'him',
+    'himself', 'his', 'how', 'i', "i'd", "i'll", "i'm", "i've", 'if', 'in', 'into', 'is', 'isn',
+    "isn't", 'it', "it'd", "it'll", "it's", 'its', 'itself', 'just', 'll', 'm', 'ma', 'me',
+    'mightn', "mightn't", 'more', 'most', 'mustn', "mustn't", 'my', 'myself', 'needn', "needn't",
+    'no', 'nor', 'not', 'now', 'o', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'our',
+    'ours', 'ourselves', 'out', 'over', 'own', 're', 's', 'same', 'shan', "shan't", 'she', "she'd",
+    "she'll", "she's", 'should', "should've", 'shouldn', "shouldn't", 'so', 'some', 'such', 't',
+    'than', 'that', "that'll", 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there',
+    'these', 'they', "they'd", "they'll", "they're", "they've", 'this', 'those', 'through', 'to',
+    'too', 'under', 'until', 'up', 've', 'very', 'was', 'wasn', "wasn't", 'we', "we'd", "we'll",
+    "we're", "we've", 'were', 'weren', "weren't", 'what', 'when', 'where', 'which', 'while',
+    'who', 'whom', 'why', 'will', 'with', 'won', "won't", 'wouldn', "wouldn't", 'y', 'you',
+    "you'd", "you'll", "you're", "you've", 'your', 'yours', 'yourself', 'yourselves'
 }
 
 try:
-    import nltk
-    from nltk.corpus import stopwords
     from nltk.stem import PorterStemmer
-
-    nltk_data_dir = "/tmp/nltk_data" if os.path.exists("/tmp") else os.path.expanduser("~/nltk_data")
-    if nltk_data_dir not in nltk.data.path:
-        nltk.data.path.append(nltk_data_dir)
-    try:
-        nltk.download('stopwords', download_dir=nltk_data_dir, quiet=True)
-        stop_words = set(stopwords.words('english'))
-    except Exception:
-        stop_words = DEFAULT_STOPWORDS
     ps = PorterStemmer()
 except Exception:
-    stop_words = DEFAULT_STOPWORDS
     class SimpleStemmer:
-        def stem(self, word):
+        def stem(self, word: str) -> str:
             return word.rstrip('es').rstrip('ed').rstrip('ing').rstrip('s')
     ps = SimpleStemmer()
 
-app = FastAPI(title="SpamGuard AI - Email Spam Classifier API", version="2.0.0")
+stop_words = NLTK_ENGLISH_STOPWORDS
+
+app = FastAPI(
+    title="SpamGuard AI - Email Spam Classifier API",
+    version="2.0.0",
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json"
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -83,10 +70,7 @@ SUSPICIOUS_SPAM_KEYWORDS = [
 ]
 
 def clean_text(text: str) -> str:
-<<<<<<< HEAD
     """Preprocess text identically to the training pipeline."""
-=======
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     text = re.sub(r'<[^>]+>', ' ', str(text))
     text = re.sub(r'[^a-zA-Z0-9$!%]', ' ', text)
     words = text.lower().split()
@@ -94,114 +78,71 @@ def clean_text(text: str) -> str:
     return ' '.join(stemmed) if stemmed else text.lower().strip()
 
 def load_artifacts():
-<<<<<<< HEAD
     """Load model, vectorizer, and metadata from api/ or root directory."""
-=======
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     global model, vectorizer, model_meta
-    if model is not None and vectorizer is not None:
+    if model is not None and vectorizer is not None and model_meta is not None:
         return model, vectorizer, model_meta
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.abspath(os.path.join(base_dir, '..'))
 
-<<<<<<< HEAD
-    candidate_dirs = [base_dir, root_dir]
-=======
-    candidate_dirs = [base_dir, root_dir, os.getcwd()]
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
+    candidate_dirs = [
+        base_dir,
+        root_dir,
+        os.getcwd(),
+        os.path.join(os.getcwd(), 'api')
+    ]
 
     for d in candidate_dirs:
         m_path = os.path.join(d, 'model.joblib')
         v_path = os.path.join(d, 'vectorizer.joblib')
         meta_path = os.path.join(d, 'model_metadata.json')
 
-        if os.path.exists(m_path) and os.path.exists(v_path):
+        if os.path.isfile(m_path) and os.path.isfile(v_path):
             try:
-                model = joblib.load(m_path)
-                vectorizer = joblib.load(v_path)
-                if os.path.exists(meta_path):
+                loaded_model = joblib.load(m_path)
+                loaded_vectorizer = joblib.load(v_path)
+                if os.path.isfile(meta_path):
                     with open(meta_path, 'r', encoding='utf-8') as f:
-                        model_meta = json.load(f)
+                        loaded_meta = json.load(f)
                 else:
-                    model_meta = {"accuracy": 98.20, "model_name": "Calibrated Soft-Voting Ensemble"}
-<<<<<<< HEAD
+                    loaded_meta = {
+                        "accuracy": 98.20,
+                        "model_name": "Calibrated Soft-Voting Ensemble",
+                        "roc_auc": 99.47,
+                        "total_samples": 11394
+                    }
+                model = loaded_model
+                vectorizer = loaded_vectorizer
+                model_meta = loaded_meta
                 print(f"[API] Loaded high-accuracy model artifacts from: {d}")
-=======
-                print(f"[API] Loaded artifacts from: {d}")
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
                 return model, vectorizer, model_meta
             except Exception as e:
                 print(f"[API] Error loading artifacts from {d}: {e}")
 
-<<<<<<< HEAD
-    # Fallback initialization if artifacts are somehow missing
-    print("[API] Notice: Pre-trained artifacts not found on disk, training fallback model...")
-=======
-    # Fallback initialization if artifacts are not found
-    print("[API] Notice: Artifacts not found on disk, training fallback model...")
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.linear_model import LogisticRegression
+    raise RuntimeError("Model artifacts (model.joblib, vectorizer.joblib) could not be located or loaded.")
 
-    sample_texts = [
-        "Congratulations you won a free lottery prize click here to claim now $1,000,000",
-        "Urgent your bank account has been suspended verify login details immediately",
-        "Win a brand new iPhone 15 Pro max right now click link below for free money",
-        "Exclusive offer get 90 percent off Rolex watches limited time only bonus",
-        "Hey are we still meeting for lunch tomorrow at noon in conference room",
-        "Please review the attached quarterly financial report for review",
-        "Mom can you pick up some groceries on your way back home",
-        "The project deployment was successful and all unit tests are passing"
-    ]
-    sample_labels = [1, 1, 1, 1, 0, 0, 0, 0]
-    vectorizer = TfidfVectorizer(ngram_range=(1, 2), max_features=3000)
-    X = vectorizer.fit_transform([clean_text(t) for t in sample_texts])
-    model = LogisticRegression(C=1.0, max_iter=1000)
-    model.fit(X, sample_labels)
-    model_meta = {"accuracy": 95.0, "model_name": "Fallback Model", "total_samples": 8}
-    return model, vectorizer, model_meta
-
-<<<<<<< HEAD
 # Pre-load on startup
-load_artifacts()
-
-class EmailRequest(BaseModel):
-    text: str
-
-@app.get("/", response_class=HTMLResponse)
-def serve_index():
-    """Serve the web application dashboard on root GET requests."""
-=======
-load_artifacts()
+try:
+    load_artifacts()
+except Exception as err:
+    print(f"[API] Startup warning: {err}")
 
 def get_index_html_content() -> str:
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
+    """Read and serve the production index.html dashboard."""
     base_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.abspath(os.path.join(base_dir, '..'))
 
     candidates = [
-<<<<<<< HEAD
-        os.path.join(root_dir, 'index.html'),
-        os.path.join(base_dir, 'index.html'),
-        'index.html'
-    ]
-    for p in candidates:
-        if os.path.exists(p):
-            with open(p, 'r', encoding='utf-8') as f:
-                return HTMLResponse(content=f.read())
-
-    return HTMLResponse("<h1>SpamGuard AI API is Running</h1><p>index.html not found in root directory.</p>")
-
-@app.get("/api/health")
-=======
         os.path.join(base_dir, 'index.html'),
         os.path.join(root_dir, 'index.html'),
+        os.path.join(os.getcwd(), 'index.html'),
+        os.path.join(os.getcwd(), 'api', 'index.html'),
         'index.html',
         'api/index.html'
     ]
     for p in candidates:
-        if os.path.exists(p):
+        if os.path.isfile(p):
             try:
                 with open(p, 'r', encoding='utf-8') as f:
                     return f.read()
@@ -212,7 +153,7 @@ def get_index_html_content() -> str:
 class EmailRequest(BaseModel):
     text: str
 
-# Multiple route handlers for Root / Index to prevent 404 on Vercel
+# Multiple route handlers for Root / Index to prevent 404 on Vercel or local
 @app.get("/", response_class=HTMLResponse)
 @app.get("/index.html", response_class=HTMLResponse)
 @app.get("/index.py", response_class=HTMLResponse)
@@ -224,76 +165,70 @@ def serve_index():
 
 @app.get("/api/health")
 @app.get("/health")
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
 def health():
-    clf, vec, meta = load_artifacts()
-    return {
-        "status": "healthy",
-        "model_loaded": clf is not None,
-        "vectorizer_loaded": vec is not None,
-        "model_name": meta.get("model_name", "Ensemble"),
-        "accuracy": meta.get("accuracy", 98.2)
-    }
+    try:
+        clf, vec, meta = load_artifacts()
+        return {
+            "status": "healthy",
+            "model_loaded": clf is not None,
+            "vectorizer_loaded": vec is not None,
+            "model_name": meta.get("model_name", "Calibrated Soft-Voting Ensemble"),
+            "accuracy": meta.get("accuracy", 98.2)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Model service unavailable: {str(e)}")
 
 @app.get("/api/model-info")
-<<<<<<< HEAD
-=======
 @app.get("/model-info")
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
 def get_model_info():
-    clf, vec, meta = load_artifacts()
-    return {
-        "status": "success",
-        "metadata": meta
-    }
+    try:
+        clf, vec, meta = load_artifacts()
+        return {
+            "status": "success",
+            "metadata": meta
+        }
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Model metadata unavailable: {str(e)}")
 
 @app.post("/api/predict")
-<<<<<<< HEAD
-=======
 @app.post("/predict")
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
 def predict_email(payload: EmailRequest):
     if not payload.text or not payload.text.strip():
         raise HTTPException(status_code=400, detail="Email content cannot be empty.")
 
     t_start = time.time()
     raw_text = payload.text
-    clf, vec, meta = load_artifacts()
+    
+    try:
+        clf, vec, meta = load_artifacts()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Model inference unavailable: {str(e)}")
 
-<<<<<<< HEAD
     # Preprocessing
-=======
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     cleaned = clean_text(raw_text)
-    if not cleaned:
+    if not cleaned.strip():
         cleaned = raw_text.lower().strip()
 
-<<<<<<< HEAD
     # Feature transformation & prediction
-=======
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
-    vec_text = vec.transform([cleaned])
-    prediction = int(clf.predict(vec_text)[0])
-    probabilities = clf.predict_proba(vec_text)[0]
+    try:
+        vec_text = vec.transform([cleaned])
+        prediction = int(clf.predict(vec_text)[0])
+        probabilities = clf.predict_proba(vec_text)[0]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Prediction error during inference: {str(e)}")
 
     spam_prob = round(float(probabilities[1]) * 100, 2)
     ham_prob = round(float(probabilities[0]) * 100, 2)
     confidence = round(float(probabilities[prediction]) * 100, 2)
 
-<<<<<<< HEAD
     # Detect trigger words
-=======
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     raw_lower = raw_text.lower()
     detected_triggers = []
     for kw in SUSPICIOUS_SPAM_KEYWORDS:
         if kw in raw_lower:
             detected_triggers.append(kw)
 
-<<<<<<< HEAD
     # Symbol counts
-=======
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     dollar_count = raw_text.count('$')
     exclamation_count = raw_text.count('!')
     if dollar_count > 0:
@@ -301,10 +236,7 @@ def predict_email(payload: EmailRequest):
     if exclamation_count >= 2:
         detected_triggers.append(f"{exclamation_count} exclamation marks")
 
-<<<<<<< HEAD
     # Risk Tiering
-=======
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
     if spam_prob >= 85:
         risk_level = "CRITICAL"
         risk_color = "rose"
@@ -340,14 +272,12 @@ def predict_email(payload: EmailRequest):
             "uppercase_chars": sum(1 for c in raw_text if c.isupper())
         },
         "model_info": {
-            "name": meta.get("model_name", "Ensemble"),
+            "name": meta.get("model_name", "Calibrated Soft-Voting Ensemble"),
             "accuracy": meta.get("accuracy", 98.20),
             "roc_auc": meta.get("roc_auc", 99.47),
-            "trained_samples": meta.get("total_samples", 11396)
+            "trained_samples": meta.get("total_samples", 11394)
         }
     }
-<<<<<<< HEAD
-=======
 
 # Catch-all route to serve index.html for any unmapped non-API GET request
 @app.get("/{full_path:path}")
@@ -355,4 +285,3 @@ def catch_all(full_path: str):
     if full_path.startswith("api/"):
         return JSONResponse(status_code=404, content={"detail": f"API endpoint '/{full_path}' not found."})
     return HTMLResponse(content=get_index_html_content())
->>>>>>> 31d563f (Fix Vercel deployment routes, add bundled index.html, update model artifacts and vercel.json)
