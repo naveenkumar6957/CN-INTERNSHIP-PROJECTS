@@ -4,10 +4,12 @@ import re
 import json
 import time
 import joblib
+from typing import Optional
 from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.openapi.docs import get_swagger_ui_html
 
 # Complete standard English stopwords (179 words) to avoid cold-start network downloads
 NLTK_ENGLISH_STOPWORDS = {
@@ -45,8 +47,8 @@ stop_words = NLTK_ENGLISH_STOPWORDS
 app = FastAPI(
     title="SpamGuard AI - Email Spam Classifier API",
     version="2.0.0",
-    docs_url="/api/docs",
-    openapi_url="/api/openapi.json"
+    docs_url="/docs",
+    openapi_url="/openapi.json"
 )
 
 app.add_middleware(
@@ -71,7 +73,9 @@ SUSPICIOUS_SPAM_KEYWORDS = [
 
 def clean_text(text: str) -> str:
     """Preprocess text identically to the training pipeline."""
-    text = re.sub(r'<[^>]+>', ' ', str(text))
+    if not isinstance(text, str):
+        text = str(text) if text is not None else ""
+    text = re.sub(r'<[^>]+>', ' ', text)
     text = re.sub(r'[^a-zA-Z0-9$!%]', ' ', text)
     words = text.lower().split()
     stemmed = [ps.stem(w) for w in words if w not in stop_words]
@@ -102,10 +106,14 @@ def load_artifacts():
             try:
                 loaded_model = joblib.load(m_path)
                 loaded_vectorizer = joblib.load(v_path)
+                loaded_meta = None
                 if os.path.isfile(meta_path):
-                    with open(meta_path, 'r', encoding='utf-8') as f:
-                        loaded_meta = json.load(f)
-                else:
+                    try:
+                        with open(meta_path, 'r', encoding='utf-8') as f:
+                            loaded_meta = json.load(f)
+                    except Exception:
+                        loaded_meta = None
+                if not loaded_meta:
                     loaded_meta = {
                         "accuracy": 98.20,
                         "model_name": "Calibrated Soft-Voting Ensemble",
@@ -134,8 +142,8 @@ def get_index_html_content() -> str:
     root_dir = os.path.abspath(os.path.join(base_dir, '..'))
 
     candidates = [
-        os.path.join(base_dir, 'index.html'),
         os.path.join(root_dir, 'index.html'),
+        os.path.join(base_dir, 'index.html'),
         os.path.join(os.getcwd(), 'index.html'),
         os.path.join(os.getcwd(), 'api', 'index.html'),
         'index.html',
@@ -151,15 +159,33 @@ def get_index_html_content() -> str:
     return "<h1>SpamGuard AI Application</h1><p>Web dashboard is ready. Upload or paste email text to evaluate threat.</p>"
 
 class EmailRequest(BaseModel):
-    text: str
+    text: Optional[str] = ""
 
-# Multiple route handlers for Root / Index to prevent 404 on Vercel or local
+# Serve Favicon as 204 No Content to avoid returning full HTML
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return Response(status_code=204)
+
+# Support both /docs and /api/docs Swagger UI seamlessly
+@app.get("/api/docs", include_in_schema=False)
+def api_docs_page():
+    return get_swagger_ui_html(openapi_url="/openapi.json", title="SpamGuard AI - API Documentation")
+
+# Support both /openapi.json and /api/openapi.json seamlessly
+@app.get("/api/openapi.json", include_in_schema=False)
+def api_openapi_schema():
+    return JSONResponse(content=app.openapi())
+
+# Multiple route handlers for Root / Index / Details to prevent 404 on Vercel or local
 @app.get("/", response_class=HTMLResponse)
 @app.get("/index.html", response_class=HTMLResponse)
 @app.get("/index.py", response_class=HTMLResponse)
 @app.get("/api", response_class=HTMLResponse)
 @app.get("/api/", response_class=HTMLResponse)
 @app.get("/api/index.py", response_class=HTMLResponse)
+@app.get("/details", response_class=HTMLResponse)
+@app.get("/pipeline", response_class=HTMLResponse)
+@app.get("/api/details", response_class=HTMLResponse)
 def serve_index():
     return HTMLResponse(content=get_index_html_content())
 
@@ -285,3 +311,9 @@ def catch_all(full_path: str):
     if full_path.startswith("api/"):
         return JSONResponse(status_code=404, content={"detail": f"API endpoint '/{full_path}' not found."})
     return HTMLResponse(content=get_index_html_content())
+
+if __name__ == "__main__":
+    import uvicorn
+    host = os.environ.get("HOST", "127.0.0.1")
+    port = int(os.environ.get("PORT", "8000"))
+    uvicorn.run("api.index:app", host=host, port=port, reload=False)
