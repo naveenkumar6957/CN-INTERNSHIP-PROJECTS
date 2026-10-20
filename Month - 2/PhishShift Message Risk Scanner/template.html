@@ -1,0 +1,2251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhishShift — Message Risk Scanner</title>
+  <meta name="description" content="Inspect suspicious messages, uncover subtle warning signs, and understand what makes a text risky — with 100% private in-browser machine learning.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       1. DESIGN TOKENS & CSS VARIABLES (DELIGHTFUL LIGHT THEME)
+       ========================================================================== */
+    :root {
+      /* Backgrounds & Surfaces */
+      --bg-main: #F8FAFC;
+      --surface-card: #FFFFFF;
+      --surface-soft-blue: #EFF6FF;
+      --surface-lavender: #F3F0FF;
+      --surface-mint: #E8F8EF;
+      --surface-amber: #FFF5DF;
+      --surface-coral: #FFF0ED;
+
+      /* Primary Brand & Accents */
+      --color-primary: #4F6BFF;
+      --color-primary-hover: #3D58E8;
+      --color-primary-light: #EBF0FF;
+      --color-lavender: #7C3AED;
+
+      /* Semantic Risk Colors */
+      --color-green: #16865A;
+      --color-green-dark: #0D6341;
+      --color-amber: #B7791F;
+      --color-amber-dark: #8F5C12;
+      --color-red: #D94B4B;
+      --color-red-dark: #B52B2B;
+
+      /* Typography Colors */
+      --text-navy: #17233B;
+      --text-secondary: #64748B;
+      --text-muted: #94A3B8;
+
+      /* Borders & Shadows */
+      --border-subtle: #E7ECF3;
+      --border-focus: #4F6BFF;
+      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+      --shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+      --shadow-elevated: 0 12px 36px -4px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+      --shadow-glow-blue: 0 0 0 4px rgba(79, 107, 255, 0.15);
+
+      /* Radii */
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-xl: 24px;
+      --radius-full: 9999px;
+
+      /* Transitions */
+      --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-smooth: 350ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Reset & Base Typography */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-navy);
+      line-height: 1.5;
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a {
+      color: var(--color-primary);
+      text-decoration: none;
+      transition: color var(--transition-fast);
+    }
+    a:hover {
+      color: var(--color-primary-hover);
+    }
+
+    /* Screen Reader Only Utility */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Layout Containers */
+    .container {
+      width: 100%;
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+
+    /* ==========================================================================
+       2. HEADER NAVIGATION
+       ========================================================================== */
+    .site-header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      transition: box-shadow var(--transition-normal);
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 72px;
+    }
+
+    .brand-mark {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text-navy);
+    }
+
+    .brand-logo-svg {
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+    }
+
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      color: var(--text-navy);
+    }
+
+    .brand-desc {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.02em;
+    }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .nav-link {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      padding: 0.5rem 0.75rem;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+    }
+    .nav-link:hover {
+      color: var(--color-primary);
+      background-color: var(--surface-soft-blue);
+    }
+
+    .privacy-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background-color: var(--surface-mint);
+      color: var(--color-green);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.35rem 0.75rem;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(22, 134, 90, 0.15);
+    }
+    .privacy-badge svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ==========================================================================
+       3. HERO SECTION
+       ========================================================================== */
+    .hero-section {
+      padding: 3rem 0 2rem;
+      text-align: center;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: var(--surface-lavender);
+      color: var(--color-lavender);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.4rem 0.9rem;
+      border-radius: var(--radius-full);
+      margin-bottom: 1.25rem;
+      border: 1px solid rgba(124, 58, 237, 0.12);
+    }
+
+    .hero-headline {
+      font-size: clamp(2rem, 4vw, 2.75rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      color: var(--text-navy);
+      max-width: 780px;
+      margin: 0 auto 1rem;
+    }
+
+    .hero-headline span.gradient-text {
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-lavender) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subcopy {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      max-width: 680px;
+      margin: 0 auto 2rem;
+      line-height: 1.6;
+    }
+
+    .hero-illustration-wrapper {
+      max-width: 480px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .hero-illustration-svg {
+      width: 100%;
+      height: auto;
+      max-height: 180px;
+      filter: drop-shadow(0 8px 24px rgba(79, 107, 255, 0.08));
+    }
+
+    /* ==========================================================================
+       4. MAIN SCANNER WORKSPACE CARD
+       ========================================================================== */
+    .scanner-workspace-section {
+      padding-bottom: 3.5rem;
+    }
+
+    .scanner-card {
+      background: var(--surface-card);
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-card);
+      padding: 2.25rem;
+      position: relative;
+      transition: box-shadow var(--transition-normal);
+    }
+
+    .scanner-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .scanner-header-text h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-navy);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .scanner-header-text p {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+
+    /* Examples Dropdown / Chips */
+    .example-chips-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .example-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .btn-chip {
+      background: var(--bg-main);
+      border: 1px solid var(--border-subtle);
+      padding: 0.35rem 0.75rem;
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-navy);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all var(--transition-fast);
+      font-family: inherit;
+    }
+    .btn-chip:hover {
+      background: var(--surface-soft-blue);
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+      transform: translateY(-1px);
+    }
+    .btn-chip svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* Textarea Box */
+    .textarea-container {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .scanner-textarea {
+      width: 100%;
+      min-height: 160px;
+      max-height: 380px;
+      padding: 1.15rem 1.25rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+      color: var(--text-navy);
+      background-color: var(--bg-main);
+      border: 1.5px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      resize: vertical;
+      line-height: 1.6;
+      transition: all var(--transition-fast);
+      outline: none;
+    }
+    .scanner-textarea:focus {
+      background-color: var(--surface-card);
+      border-color: var(--color-primary);
+      box-shadow: var(--shadow-glow-blue);
+    }
+    .scanner-textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Toolbar Below Textarea */
+    .scanner-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .char-counter {
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+    }
+    .char-counter.warning {
+      color: var(--color-amber);
+      font-weight: 600;
+    }
+    .char-counter.limit-reached {
+      color: var(--color-red);
+      font-weight: 700;
+    }
+
+    .btn-clear {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+      font-family: inherit;
+    }
+    .btn-clear:hover {
+      color: var(--color-red);
+      background-color: var(--surface-coral);
+    }
+
+    /* Action Row */
+    .scanner-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .privacy-notice-inline {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+    .privacy-notice-inline svg {
+      width: 16px;
+      height: 16px;
+      color: var(--color-green);
+      flex-shrink: 0;
+    }
+
+    .btn-analyze {
+      background-color: var(--color-primary);
+      color: #FFFFFF;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1.75rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      box-shadow: 0 4px 12px rgba(79, 107, 255, 0.25);
+      transition: all var(--transition-fast);
+      font-family: inherit;
+    }
+    .btn-analyze:hover:not(:disabled) {
+      background-color: var(--color-primary-hover);
+      box-shadow: 0 6px 16px rgba(79, 107, 255, 0.35);
+      transform: translateY(-1px);
+    }
+    .btn-analyze:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    .btn-analyze:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .btn-analyze .shortcut-badge {
+      background: rgba(255, 255, 255, 0.2);
+      font-size: 0.7rem;
+      font-weight: 500;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      letter-spacing: 0.02em;
+    }
+
+    .btn-analyze .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-top-color: #FFFFFF;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+    .btn-analyze.loading .spinner {
+      display: inline-block;
+    }
+    .btn-analyze.loading .icon-scan {
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Educational Alert Banner */
+    .safety-disclaimer-bar {
+      margin-top: 1.25rem;
+      background-color: var(--surface-soft-blue);
+      border: 1px solid rgba(79, 107, 255, 0.15);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.8rem;
+      color: var(--text-navy);
+    }
+    .safety-disclaimer-bar svg {
+      width: 18px;
+      height: 18px;
+      color: var(--color-primary);
+      flex-shrink: 0;
+    }
+
+    /* Error Message Box */
+    .input-error-msg {
+      display: none;
+      color: var(--color-red);
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      align-items: center;
+      gap: 0.4rem;
+      font-weight: 500;
+    }
+    .input-error-msg.visible {
+      display: flex;
+    }
+
+    /* ==========================================================================
+       5. RESULTS DASHBOARD
+       ========================================================================== */
+    .results-section {
+      margin-top: 2rem;
+      display: none;
+      animation: slideUpFade 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .results-section.active {
+      display: block;
+    }
+
+    @keyframes slideUpFade {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .results-card {
+      background: var(--surface-card);
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-elevated);
+      overflow: hidden;
+    }
+
+    /* Primary Classification Header Banner */
+    .risk-banner {
+      padding: 2rem 2.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      transition: background-color var(--transition-normal);
+    }
+
+    .risk-banner.risk-high {
+      background-color: var(--surface-coral);
+      border-bottom-color: rgba(217, 75, 75, 0.2);
+    }
+    .risk-banner.risk-medium {
+      background-color: var(--surface-amber);
+      border-bottom-color: rgba(183, 121, 31, 0.2);
+    }
+    .risk-banner.risk-low {
+      background-color: var(--surface-mint);
+      border-bottom-color: rgba(22, 134, 90, 0.2);
+    }
+
+    .risk-meta-left {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .risk-status-icon-wrapper {
+      width: 56px;
+      height: 56px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .risk-high .risk-status-icon-wrapper {
+      background: var(--color-red);
+      color: #FFFFFF;
+      box-shadow: 0 4px 12px rgba(217, 75, 75, 0.25);
+    }
+    .risk-medium .risk-status-icon-wrapper {
+      background: var(--color-amber);
+      color: #FFFFFF;
+      box-shadow: 0 4px 12px rgba(183, 121, 31, 0.25);
+    }
+    .risk-low .risk-status-icon-wrapper {
+      background: var(--color-green);
+      color: #FFFFFF;
+      box-shadow: 0 4px 12px rgba(22, 134, 90, 0.25);
+    }
+    .risk-status-icon-wrapper svg {
+      width: 30px;
+      height: 30px;
+    }
+
+    .risk-classification-details {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .risk-badge-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.25rem;
+    }
+    .risk-high .risk-badge-label { color: var(--color-red-dark); }
+    .risk-medium .risk-badge-label { color: var(--color-amber-dark); }
+    .risk-low .risk-badge-label { color: var(--color-green-dark); }
+
+    .risk-title-heading {
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-navy);
+      line-height: 1.2;
+    }
+
+    .risk-summary-text {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+      max-width: 520px;
+    }
+
+    /* Gauge / Meter on Right */
+    .risk-meter-box {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(4px);
+      padding: 0.9rem 1.4rem;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .gauge-circle-container {
+      position: relative;
+      width: 64px;
+      height: 64px;
+    }
+
+    .gauge-svg {
+      width: 64px;
+      height: 64px;
+      transform: rotate(-90deg);
+    }
+
+    .gauge-bg {
+      fill: none;
+      stroke: var(--border-subtle);
+      stroke-width: 6;
+    }
+
+    .gauge-fill {
+      fill: none;
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-dasharray: 175.9;
+      stroke-dashoffset: 175.9;
+      transition: stroke-dashoffset 800ms cubic-bezier(0.16, 1, 0.3, 1), stroke var(--transition-normal);
+    }
+    .risk-high .gauge-fill { stroke: var(--color-red); }
+    .risk-medium .gauge-fill { stroke: var(--color-amber); }
+    .risk-low .gauge-fill { stroke: var(--color-green); }
+
+    .gauge-percentage-label {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--text-navy);
+    }
+
+    .meter-description-text {
+      display: flex;
+      flex-direction: column;
+    }
+    .meter-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+    .meter-calibrated-note {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+      max-width: 160px;
+      line-height: 1.3;
+    }
+
+    /* Results Body Grid */
+    .results-body {
+      padding: 2.25rem;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+
+    /* Warning Signs Section */
+    .results-block-heading {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-navy);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .results-block-heading svg {
+      width: 20px;
+      height: 20px;
+      color: var(--color-primary);
+    }
+
+    .cues-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .cue-card {
+      background: var(--bg-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1rem 1.15rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      transition: transform var(--transition-fast);
+    }
+    .cue-card:hover {
+      transform: translateY(-1px);
+    }
+
+    .cue-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .cue-high .cue-icon { background: var(--surface-coral); color: var(--color-red); }
+    .cue-medium .cue-icon { background: var(--surface-amber); color: var(--color-amber); }
+    .cue-info .cue-icon { background: var(--surface-soft-blue); color: var(--color-primary); }
+
+    .cue-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      flex: 1;
+    }
+
+    .cue-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .cue-title {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--text-navy);
+    }
+
+    .cue-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0.15rem 0.45rem;
+      border-radius: var(--radius-full);
+      letter-spacing: 0.04em;
+    }
+    .cue-high .cue-badge { background: var(--surface-coral); color: var(--color-red); }
+    .cue-medium .cue-badge { background: var(--surface-amber); color: var(--color-amber); }
+
+    .cue-desc {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .cue-matches {
+      font-size: 0.75rem;
+      color: var(--text-navy);
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 0.25rem 0.5rem;
+      margin-top: 0.25rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      word-break: break-all;
+    }
+
+    .no-cues-card {
+      background: var(--surface-mint);
+      border: 1px solid rgba(22, 134, 90, 0.2);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      color: var(--color-green-dark);
+      font-size: 0.875rem;
+    }
+    .no-cues-card svg {
+      width: 24px;
+      height: 24px;
+      color: var(--color-green);
+      flex-shrink: 0;
+    }
+
+    /* Explainable AI Terms Section */
+    .explainability-section {
+      background: var(--bg-main);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      padding: 1.5rem;
+    }
+
+    .explainability-intro {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
+    }
+
+    .tokens-attribution-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .token-attribution-item {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1.15rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .token-word-box {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .token-pill {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-navy);
+      background: var(--surface-soft-blue);
+      border: 1px solid rgba(79, 107, 255, 0.2);
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .token-direction-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    .token-direction-badge.increases-risk {
+      background: var(--surface-coral);
+      color: var(--color-red);
+    }
+    .token-direction-badge.decreases-risk {
+      background: var(--surface-mint);
+      color: var(--color-green);
+    }
+
+    .token-explanation-text {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .token-weight-val {
+      font-size: 0.75rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-muted);
+    }
+
+    /* Recommended Actions Section */
+    .recommendations-box {
+      background: #FFFFFF;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+    }
+
+    .recommendations-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      list-style: none;
+    }
+
+    .recommendation-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      font-size: 0.875rem;
+      color: var(--text-navy);
+      line-height: 1.5;
+    }
+    .recommendation-item svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      margin-top: 0.15rem;
+    }
+    .rec-danger svg { color: var(--color-red); }
+    .rec-safe svg { color: var(--color-green); }
+    .rec-warn svg { color: var(--color-amber); }
+
+    /* ==========================================================================
+       6. HOW IT WORKS SECTION
+       ========================================================================== */
+    .how-it-works-section {
+      padding: 4rem 0;
+      background: #FFFFFF;
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .section-eyebrow {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .section-title {
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-navy);
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+
+    .step-card {
+      background: var(--bg-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      position: relative;
+      transition: all var(--transition-normal);
+    }
+    .step-card:hover {
+      box-shadow: var(--shadow-card);
+      transform: translateY(-2px);
+      border-color: rgba(79, 107, 255, 0.25);
+    }
+
+    .step-number-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-full);
+      background: var(--color-primary);
+      color: #FFFFFF;
+      font-weight: 800;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 4px 10px rgba(79, 107, 255, 0.25);
+    }
+
+    .step-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-navy);
+      margin-bottom: 0.5rem;
+    }
+
+    .step-desc {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ==========================================================================
+       7. PRIVACY & SAFETY SECTION
+       ========================================================================== */
+    .privacy-section {
+      padding: 4rem 0;
+    }
+
+    .privacy-card {
+      background: linear-gradient(135deg, #FFFFFF 0%, var(--surface-soft-blue) 100%);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: 2.5rem;
+      box-shadow: var(--shadow-card);
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 2.5rem;
+      align-items: center;
+    }
+
+    .privacy-header-col h2 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-navy);
+      line-height: 1.25;
+      margin-bottom: 0.75rem;
+    }
+
+    .privacy-header-col p {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .privacy-guarantees-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      list-style: none;
+    }
+
+    .privacy-guarantee-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(231, 236, 243, 0.8);
+      padding: 1rem 1.15rem;
+      border-radius: var(--radius-md);
+    }
+
+    .guarantee-icon {
+      width: 24px;
+      height: 24px;
+      color: var(--color-green);
+      flex-shrink: 0;
+      margin-top: 0.15rem;
+    }
+
+    .guarantee-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-navy);
+    }
+
+    .guarantee-desc {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.15rem;
+      line-height: 1.4;
+    }
+
+    /* ==========================================================================
+       8. FOOTER
+       ========================================================================== */
+    .site-footer {
+      background: #FFFFFF;
+      border-top: 1px solid var(--border-subtle);
+      padding: 2.5rem 0;
+      margin-top: auto;
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+
+    .footer-left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .footer-brand {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-navy);
+    }
+
+    .footer-tagline {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .footer-disclaimer {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      max-width: 500px;
+      line-height: 1.4;
+      margin-top: 0.5rem;
+    }
+
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .btn-top {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: var(--radius-sm);
+      background: var(--bg-main);
+      border: 1px solid var(--border-subtle);
+      transition: all var(--transition-fast);
+    }
+    .btn-top:hover {
+      color: var(--color-primary);
+      border-color: var(--color-primary);
+    }
+
+    /* ==========================================================================
+       9. RESPONSIVE MEDIA QUERIES
+       ========================================================================== */
+    @media (max-width: 900px) {
+      .privacy-card {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .header-inner {
+        height: 64px;
+      }
+      .scanner-card {
+        padding: 1.5rem;
+      }
+      .risk-banner {
+        padding: 1.5rem;
+      }
+      .results-body {
+        padding: 1.5rem;
+      }
+      .scanner-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+      }
+      .btn-analyze {
+        width: 100%;
+        justify-content: center;
+      }
+      .risk-meter-box {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .scanner-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .example-chips-group {
+        width: 100%;
+      }
+    }
+
+    /* Accessibility: Respect Reduced Motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ==========================================================================
+       A. NAVIGATION HEADER
+       ========================================================================== -->
+  <header class="site-header" role="banner">
+    <div class="container header-inner">
+      <a href="#" class="brand-mark" aria-label="PhishShift Home">
+        <!-- Custom Brand Mark: PhishShift Aperture Envelope -->
+        <svg class="brand-logo-svg" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect width="48" height="48" rx="12" fill="#4F6BFF"/>
+          <path d="M12 18C12 15.7909 13.7909 14 16 14H32C34.2091 14 36 15.7909 36 18V30C36 32.2091 34.2091 34 32 34H16C13.7909 34 12 32.2091 12 30V18Z" fill="#FFFFFF" fill-opacity="0.2"/>
+          <path d="M14 17L24 25L34 17" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="24" cy="27" r="6" fill="#FFFFFF" stroke="#4F6BFF" stroke-width="2"/>
+          <circle cx="24" cy="27" r="2.5" fill="#16865A"/>
+        </svg>
+        <div class="brand-text">
+          <span class="brand-title">PhishShift</span>
+          <span class="brand-desc">Message Risk Scanner</span>
+        </div>
+      </a>
+
+      <nav class="header-nav" role="navigation" aria-label="Main Navigation">
+        <a href="#how-it-works" class="nav-link">How it works</a>
+        <a href="#privacy-safety" class="nav-link">Privacy</a>
+        <div class="privacy-badge" title="All analysis occurs directly in browser memory">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <span>Privacy first</span>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main role="main">
+    <!-- ==========================================================================
+         B. HERO SECTION
+         ========================================================================== -->
+    <section class="hero-section" aria-labelledby="hero-title">
+      <div class="container">
+        <div class="hero-eyebrow">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          PERSONAL MESSAGE SAFETY
+        </div>
+
+        <h1 id="hero-title" class="hero-headline">
+          Not every message deserves <span class="gradient-text">your trust.</span>
+        </h1>
+
+        <p class="hero-subcopy">
+          Inspect suspicious messages, uncover subtle warning signs, and understand what makes a text risky — without opening a single link.
+        </p>
+
+        <!-- Elegant Hero Visual Illustration -->
+        <div class="hero-illustration-wrapper" aria-hidden="true">
+          <svg class="hero-illustration-svg" viewBox="0 0 420 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Background Bubble -->
+            <rect x="20" y="20" width="380" height="120" rx="18" fill="#FFFFFF" stroke="#E7ECF3" stroke-width="2"/>
+            
+            <!-- Message Header bar -->
+            <circle cx="50" cy="48" r="14" fill="#EFF6FF"/>
+            <path d="M45 48H55M50 43V53" stroke="#4F6BFF" stroke-width="2" stroke-linecap="round"/>
+            <rect x="74" y="42" width="110" height="8" rx="4" fill="#E7ECF3"/>
+            <rect x="74" y="54" width="70" height="6" rx="3" fill="#F1F5F9"/>
+
+            <!-- Message Lines -->
+            <rect x="50" y="78" width="310" height="8" rx="4" fill="#F1F5F9"/>
+            <rect x="50" y="94" width="230" height="8" rx="4" fill="#F1F5F9"/>
+
+            <!-- Scanner Laser Beam Overlay -->
+            <path d="M30 65H390" stroke="#4F6BFF" stroke-width="2" stroke-dasharray="6 4" stroke-opacity="0.8"/>
+            <rect x="280" y="72" width="90" height="20" rx="4" fill="#FFF0ED" stroke="#D94B4B" stroke-width="1"/>
+            <text x="288" y="86" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#D94B4B">Flagged Term</text>
+
+            <!-- Status Indicator Floating Pill -->
+            <g transform="translate(260, 24)">
+              <rect width="130" height="32" rx="16" fill="#E8F8EF" stroke="#16865A" stroke-width="1.5"/>
+              <circle cx="20" cy="16" r="6" fill="#16865A"/>
+              <text x="34" y="20" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#16865A">In-Browser ML</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         C. MAIN SCANNER WORKSPACE
+         ========================================================================== -->
+    <section class="scanner-workspace-section" aria-labelledby="scanner-heading">
+      <div class="container">
+        <div class="scanner-card">
+          <div class="scanner-header">
+            <div class="scanner-header-text">
+              <h2 id="scanner-heading">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 12h20M2 12l5-5M2 12l5 5"/>
+                </svg>
+                Analyze a message
+              </h2>
+              <p>Paste any suspicious SMS, WhatsApp message, or direct text to inspect risk indicators.</p>
+            </div>
+
+            <!-- Try an Example Menu -->
+            <div class="example-chips-group" role="group" aria-label="Load pre-built example messages">
+              <span class="example-label">Try an example:</span>
+              <button type="button" class="btn-chip" id="btn-example-phish" aria-label="Load suspicious account verification example">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Suspicious Alert
+              </button>
+              <button type="button" class="btn-chip" id="btn-example-promo" aria-label="Load promotional marketing example">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                Promotional
+              </button>
+              <button type="button" class="btn-chip" id="btn-example-legit" aria-label="Load ordinary personal example">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Personal
+              </button>
+            </div>
+          </div>
+
+          <!-- Input Area -->
+          <div class="textarea-container">
+            <label for="message-input" class="sr-only">Message content to analyze</label>
+            <textarea
+              id="message-input"
+              class="scanner-textarea"
+              placeholder="Example: Your account requires verification. Act now to avoid service interruption: https://secure-bank-verify.example..."
+              maxlength="2000"
+              spellcheck="false"
+              aria-describedby="char-count input-hint"
+            ></textarea>
+            <div id="input-error" class="input-error-msg" role="alert">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span id="input-error-text">Please enter a message to analyze.</span>
+            </div>
+          </div>
+
+          <!-- Toolbar -->
+          <div class="scanner-toolbar">
+            <div class="toolbar-left">
+              <span id="char-count" class="char-counter">0 / 2,000 characters</span>
+              <button type="button" id="btn-clear" class="btn-clear" aria-label="Clear current message text">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Clear text
+              </button>
+            </div>
+            <span id="input-hint" class="input-hint-text">Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to analyze</span>
+          </div>
+
+          <!-- Action Row -->
+          <div class="scanner-actions">
+            <div class="privacy-notice-inline">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <span>Your message stays in this browser. Computation runs 100% locally.</span>
+            </div>
+
+            <button type="button" id="btn-analyze" class="btn-analyze" aria-label="Analyze message for phishing risks">
+              <span class="spinner" aria-hidden="true"></span>
+              <svg class="icon-scan" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <span>Analyze message</span>
+              <span class="shortcut-badge">Ctrl + ↵</span>
+            </button>
+          </div>
+
+          <!-- Educational Disclaimer Banner -->
+          <div class="safety-disclaimer-bar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <span><strong>Educational disclaimer:</strong> PhishShift is an assistive learning tool. Never click suspicious links to investigate a message.</span>
+          </div>
+
+          <!-- Live Announcement Region for Screen Readers -->
+          <div id="live-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+          <!-- ==========================================================================
+               E. RESULTS DASHBOARD
+               ========================================================================== -->
+          <div id="results-container" class="results-section" aria-labelledby="results-heading">
+            <div class="results-card">
+              <!-- Risk Banner -->
+              <div id="risk-banner" class="risk-banner risk-high">
+                <div class="risk-meta-left">
+                  <div id="risk-status-icon" class="risk-status-icon-wrapper" aria-hidden="true">
+                    <!-- Icon replaced dynamically -->
+                  </div>
+                  <div class="risk-classification-details">
+                    <span id="risk-badge-label" class="risk-badge-label">Classification</span>
+                    <h3 id="risk-classification-title" class="risk-title-heading">Potential phishing</h3>
+                    <p id="risk-classification-summary" class="risk-summary-text">
+                      High probability of deception detected. This message contains aggressive urgency and credentials harvesting patterns.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Circular Risk Gauge -->
+                <div class="risk-meter-box">
+                  <div class="gauge-circle-container">
+                    <svg class="gauge-svg" viewBox="0 0 64 64" aria-hidden="true">
+                      <circle class="gauge-bg" cx="32" cy="32" r="28"/>
+                      <circle id="gauge-fill-circle" class="gauge-fill" cx="32" cy="32" r="28"/>
+                    </svg>
+                    <div id="gauge-percent-display" class="gauge-percentage-label">92%</div>
+                  </div>
+                  <div class="meter-description-text">
+                    <span class="meter-label">Model Risk Score</span>
+                    <span class="meter-calibrated-note">Neural network probability estimate, not a real-world scam guarantee.</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Results Body -->
+              <div class="results-body">
+                <!-- 1. Matched Warning Signs -->
+                <div>
+                  <h4 class="results-block-heading">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                      <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    Detected Warning Signs
+                  </h4>
+                  <div id="warning-cues-container" class="cues-container">
+                    <!-- Populated dynamically -->
+                  </div>
+                </div>
+
+                <!-- 2. Explainable Text Analysis -->
+                <div class="explainability-section">
+                  <h4 class="results-block-heading">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                    Explainable Model Analysis — Top Contributing Terms
+                  </h4>
+                  <p class="explainability-intro">
+                    Computed via local gradient attribution (Input × Gradient) on the multi-layer neural network. These tokens contributed most heavily to the model's decision:
+                  </p>
+                  <div id="top-tokens-container" class="tokens-attribution-list">
+                    <!-- Populated dynamically -->
+                  </div>
+                </div>
+
+                <!-- 3. Recommended Next Steps -->
+                <div class="recommendations-box">
+                  <h4 class="results-block-heading">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                    </svg>
+                    Recommended Next Steps
+                  </h4>
+                  <ul id="recommendations-list" class="recommendations-list">
+                    <!-- Populated dynamically -->
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         F. HOW IT WORKS SECTION
+         ========================================================================== -->
+    <section id="how-it-works" class="how-it-works-section" aria-labelledby="how-it-works-heading">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-eyebrow">TRANSPARENT INSPECTION</span>
+          <h2 id="how-it-works-heading" class="section-title">How PhishShift Works</h2>
+        </div>
+
+        <div class="steps-grid">
+          <div class="step-card">
+            <div class="step-number-badge">1</div>
+            <h3 class="step-title">Paste the message</h3>
+            <p class="step-desc">
+              Paste the text content into the scanner. Text is processed exclusively in your device's browser memory. No data is stored, cached, or transmitted to any server.
+            </p>
+          </div>
+
+          <div class="step-card">
+            <div class="step-number-badge">2</div>
+            <h3 class="step-title">In-browser machine learning</h3>
+            <p class="step-desc">
+              A trained 5,000-feature TF-IDF vectorizer and 100-neuron Multilayer Perceptron neural network execute locally in JavaScript, analyzing syntax, terminology, and semantic weight.
+            </p>
+          </div>
+
+          <div class="step-card">
+            <div class="step-number-badge">3</div>
+            <h3 class="step-title">Understand & protect</h3>
+            <p class="step-desc">
+              Review calibrated risk classifications, explainable word attribution gradients, and specific threat cues to make an informed, confident safety decision.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         G. PRIVACY AND SAFETY SECTION
+         ========================================================================== -->
+    <section id="privacy-safety" class="privacy-section" aria-labelledby="privacy-heading">
+      <div class="container">
+        <div class="privacy-card">
+          <div class="privacy-header-col">
+            <h2 id="privacy-heading">Privacy & Safety by Design</h2>
+            <p>
+              Digital communication security requires absolute user privacy. PhishShift operates with strict defensive guardrails.
+            </p>
+          </div>
+
+          <ul class="privacy-guarantees-list">
+            <li class="privacy-guarantee-item">
+              <svg class="guarantee-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              <div>
+                <strong class="guarantee-title">Zero Server Transmission</strong>
+                <p class="guarantee-desc">All machine learning inference runs 100% locally in your browser. Your messages never leave your machine.</p>
+              </div>
+            </li>
+
+            <li class="privacy-guarantee-item">
+              <svg class="guarantee-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+              </svg>
+              <div>
+                <strong class="guarantee-title">Zero URL Execution</strong>
+                <p class="guarantee-desc">Extracted URLs are treated strictly as inert text strings. The scanner never opens, navigates, or pings any link found in user text.</p>
+              </div>
+            </li>
+
+            <li class="privacy-guarantee-item">
+              <svg class="guarantee-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              <div>
+                <strong class="guarantee-title">Safe DOM Rendering</strong>
+                <p class="guarantee-desc">Message content is rendered exclusively through safe textNode and textContent APIs to protect against script injection.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==========================================================================
+       H. FOOTER
+       ========================================================================== -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <span class="footer-brand">PhishShift</span>
+        <span class="footer-tagline">Built for safer digital communication.</span>
+        <p class="footer-disclaimer">
+          PhishShift is an educational prototype. Machine-learning models can make mistakes. Always independently verify suspicious requests through official, out-of-band communication channels.
+        </p>
+      </div>
+
+      <div class="footer-right">
+        <a href="#" class="btn-top" aria-label="Return to top of page">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+          </svg>
+          Back to top
+        </a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==========================================================================
+       EMBEDDED MODEL DATA (POPULATED BY build.py IN PRODUCTION)
+       ========================================================================== -->
+  <script id="phishshift-model-data" type="application/json">
+/* PHISHSHIFT_MODEL_JSON_PLACEHOLDER */
+  </script>
+
+  <!-- ==========================================================================
+       IN-BROWSER JAVASCRIPT ENGINE (ML INFERENCE, HEURISTICS & UI)
+       ========================================================================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      // -----------------------------------------------------------------------
+      // 1. Safe Sample Messages
+      // -----------------------------------------------------------------------
+      const SAMPLE_MESSAGES = {
+        phish: "ALERT from FirstMetro Bank: Unusual login attempt detected on your checking account. Access has been temporarily restricted. Verify your credentials immediately within 24 hours to prevent account suspension: https://firstmetro-secure-verify.example/auth",
+        promo: "Spring Flash Sale at UrbanTrend! Enjoy 30% off our new outerwear collection this weekend only. Use code SPRING30 at checkout in our mobile app. Reply STOP to unsubscribe.",
+        legit: "Hey Alex, dinner is confirmed for 7:30 PM tonight at the bistro on 4th Street. Can you grab a table outside if you arrive first? See you soon!"
+      };
+
+      // -----------------------------------------------------------------------
+      // 2. DOM Element Selectors
+      // -----------------------------------------------------------------------
+      const messageInput = document.getElementById('message-input');
+      const charCountDisplay = document.getElementById('char-count');
+      const btnClear = document.getElementById('btn-clear');
+      const btnAnalyze = document.getElementById('btn-analyze');
+      const inputError = document.getElementById('input-error');
+      const inputErrorText = document.getElementById('input-error-text');
+      const liveAnnouncer = document.getElementById('live-announcer');
+
+      const btnExamplePhish = document.getElementById('btn-example-phish');
+      const btnExamplePromo = document.getElementById('btn-example-promo');
+      const btnExampleLegit = document.getElementById('btn-example-legit');
+
+      const resultsContainer = document.getElementById('results-container');
+      const riskBanner = document.getElementById('risk-banner');
+      const riskStatusIcon = document.getElementById('risk-status-icon');
+      const riskBadgeLabel = document.getElementById('risk-badge-label');
+      const riskClassificationTitle = document.getElementById('risk-classification-title');
+      const riskClassificationSummary = document.getElementById('risk-classification-summary');
+      const gaugeFillCircle = document.getElementById('gauge-fill-circle');
+      const gaugePercentDisplay = document.getElementById('gauge-percent-display');
+      const warningCuesContainer = document.getElementById('warning-cues-container');
+      const topTokensContainer = document.getElementById('top-tokens-container');
+      const recommendationsList = document.getElementById('recommendations-list');
+
+      // -----------------------------------------------------------------------
+      // 3. Model State Management
+      // -----------------------------------------------------------------------
+      let activeModel = null;
+      let isModelLoading = true;
+
+      async function initializeModel() {
+        // Priority 1: Embedded JSON in script tag
+        const embeddedScript = document.getElementById('phishshift-model-data');
+        if (embeddedScript && embeddedScript.textContent) {
+          const rawText = embeddedScript.textContent.trim();
+          if (rawText.length > 50 && !rawText.startsWith('/* PHISHSHIFT_MODEL_JSON_PLACEHOLDER')) {
+            try {
+              activeModel = JSON.parse(rawText);
+              isModelLoading = false;
+              console.log('[PhishShift] Successfully loaded embedded model v' + activeModel.version);
+              return;
+            } catch (err) {
+              console.warn('[PhishShift] Failed parsing embedded JSON model:', err);
+            }
+          }
+        }
+
+        // Priority 2: Fetch external model.json (development mode)
+        try {
+          const res = await fetch('model.json');
+          if (res.ok) {
+            activeModel = await res.json();
+            isModelLoading = false;
+            console.log('[PhishShift] Loaded model.json via fetch v' + activeModel.version);
+            return;
+          }
+        } catch (fetchErr) {
+          console.log('[PhishShift] Development fetch unavailable (standard for standalone file://)');
+        }
+
+        isModelLoading = false;
+      }
+
+      initializeModel();
+
+      // -----------------------------------------------------------------------
+      // 4. Mathematical Machine-Learning Inference Pipeline
+      // -----------------------------------------------------------------------
+      /**
+       * Matches scikit-learn TfidfVectorizer tokenization regex r"(?u)\b\w\w+\b"
+       */
+      function tokenize(text) {
+        if (!text || typeof text !== 'string') return [];
+        const lower = text.toLowerCase();
+        const matches = lower.match(/\b[a-z0-9_]{2,}\b/g);
+        return matches || [];
+      }
+
+      /**
+       * Executes exact scikit-learn TF-IDF vectorization and MLPClassifier forward pass
+       */
+      function runModelInference(text) {
+        if (!activeModel) {
+          return { error: 'Model parameters not loaded.' };
+        }
+
+        const vocab = activeModel.vocabulary;
+        const idf = activeModel.idf;
+        const W1 = activeModel.weights.W1; // (vocab_size, 100)
+        const b1 = activeModel.weights.b1; // (100,)
+        const W2 = activeModel.weights.W2; // (100,)
+        const b2 = activeModel.weights.b2; // scalar float
+
+        const tokens = tokenize(text);
+        if (tokens.length === 0) {
+          return { probability: 0.1, attributions: [] };
+        }
+
+        // Count term frequencies
+        const counts = {};
+        for (let i = 0; i < tokens.length; i++) {
+          const t = tokens[i];
+          counts[t] = (counts[t] || 0) + 1;
+        }
+
+        // Compute sparse non-zero vector values
+        const activeTokens = [];
+        let normSq = 0;
+        for (const token in counts) {
+          if (Object.prototype.hasOwnProperty.call(vocab, token)) {
+            const idx = vocab[token];
+            const val = counts[token] * idf[idx];
+            normSq += val * val;
+            activeTokens.push({ token, idx, val });
+          }
+        }
+
+        if (activeTokens.length === 0) {
+          // No tokens in vocabulary
+          return { probability: 0.15, attributions: [] };
+        }
+
+        const norm = Math.sqrt(normSq);
+        for (let i = 0; i < activeTokens.length; i++) {
+          activeTokens[i].normVal = activeTokens[i].val / norm;
+        }
+
+        // Layer 1 Forward Pass (Sparse vector dot product + bias)
+        const hiddenDim = b1.length;
+        const z1 = new Float64Array(hiddenDim);
+        for (let j = 0; j < hiddenDim; j++) {
+          z1[j] = b1[j];
+        }
+
+        for (let i = 0; i < activeTokens.length; i++) {
+          const idx = activeTokens[i].idx;
+          const xVal = activeTokens[i].normVal;
+          const wRow = W1[idx];
+          for (let j = 0; j < hiddenDim; j++) {
+            z1[j] += xVal * wRow[j];
+          }
+        }
+
+        // Activation: ReLU (max(0, z1))
+        const a1 = new Float64Array(hiddenDim);
+        const reluActive = new Uint8Array(hiddenDim);
+        for (let j = 0; j < hiddenDim; j++) {
+          if (z1[j] > 0) {
+            a1[j] = z1[j];
+            reluActive[j] = 1;
+          } else {
+            a1[j] = 0;
+            reluActive[j] = 0;
+          }
+        }
+
+        // Layer 2 Forward Pass (Hidden layer dot product + bias)
+        let z2 = b2;
+        for (let j = 0; j < hiddenDim; j++) {
+          z2 += a1[j] * W2[j];
+        }
+
+        // Output Activation: Logistic Sigmoid (1 / (1 + exp(-z2)))
+        const probability = 1.0 / (1.0 + Math.exp(-z2));
+
+        // Explainable AI Feature Attribution: Input × Gradient
+        // d(z2)/d(x_i) = sum_{j: z1_j > 0} W1[i][j] * W2[j]
+        const attributions = [];
+        for (let i = 0; i < activeTokens.length; i++) {
+          const item = activeTokens[i];
+          const wRow = W1[item.idx];
+          let grad = 0;
+          for (let j = 0; j < hiddenDim; j++) {
+            if (reluActive[j]) {
+              grad += wRow[j] * W2[j];
+            }
+          }
+          const attr = item.normVal * grad;
+          attributions.push({
+            token: item.token,
+            attribution: attr,
+            magnitude: Math.abs(attr),
+            direction: attr >= 0 ? 'increases_risk' : 'decreases_risk'
+          });
+        }
+
+        // Sort descending by attribution (highest positive risk contributors first)
+        attributions.sort((a, b) => b.attribution - a.attribution);
+
+        return {
+          probability: Math.min(Math.max(probability, 0.0), 1.0),
+          attributions
+        };
+      }
+
+      // -----------------------------------------------------------------------
+      // 5. Threat Cues & Heuristics Detection Engine
+      // -----------------------------------------------------------------------
+      const THREAT_RULES = [
+        {
+          id: 'urgency',
+          title: 'Urgency & Pressure',
+          severity: 'high',
+          regex: /\b(urgent|urgently|immediately|action required|act now|within 24 hours|expire|expires|expiring|limited time|final notice|immediate attention|right away|promptly)\b/gi,
+          desc: 'Creates artificial panic to force hasty compliance without verification.'
+        },
+        {
+          id: 'account_verification',
+          title: 'Account Verification Request',
+          severity: 'high',
+          regex: /\b(verify your account|verification required|confirm your identity|update your info(?:rmation)?|validate your account|re-activate|reactivate your account|log in to verify|security check)\b/gi,
+          desc: 'Claims your account or access is compromised to trick you into re-authenticating.'
+        },
+        {
+          id: 'suspension_threat',
+          title: 'Threats of Suspension or Closure',
+          severity: 'high',
+          regex: /\b(suspend(?:ed|ing)?|account locked|temporarily disabled|service interruption|restricted|terminated|close(?:d)? your account|blocked|legal action|penalty)\b/gi,
+          desc: 'Threatens service loss or penalties to induce fear.'
+        },
+        {
+          id: 'credentials_otp',
+          title: 'Password, PIN, or OTP Request',
+          severity: 'high',
+          regex: /\b(otp|one-time password|passcode|pin|security code|verification code|share your password|never share this code|send code back|enter pin)\b/gi,
+          desc: 'Requests sensitive one-time codes used for multi-factor authentication bypass.'
+        },
+        {
+          id: 'unusual_payment',
+          title: 'Unusual Payment or Transfer Demands',
+          severity: 'medium',
+          regex: /\b(wire transfer|crypto(?:currency)?|bitcoin|gift card|wire money|cash app|zelle|unpaid toll|overdue invoice|toll charge|customs fee|processing fee|tax debt)\b/gi,
+          desc: 'Demands unconventional or untraceable payment methods.'
+        },
+        {
+          id: 'sensitive_info',
+          title: 'Sensitive Personal Info Harvesting',
+          severity: 'high',
+          regex: /\b(ssn|social security|card number|cvv|expir(?:y|ation) date|date of birth|mother's maiden|bank account number|routing number|credit card|debit card)\b/gi,
+          desc: 'Attempts to harvest high-value identity or financial credentials.'
+        },
+        {
+          id: 'url_shortener_or_deceptive',
+          title: 'Suspicious or Deceptive Link Pattern',
+          severity: 'high',
+          regex: /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.(?:bit\.ly|tinyurl\.com|is\.gd|t\.co|cutt\.ly|rb\.gy|link|xyz|top|work|click|info|vip|online|cc|tk|ml|ga|cf|gq)(?:\/[^\s]*)?|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d+)?(?:\/[^\s]*)?|[a-zA-Z0-9-]+-(?:secure|bank|login|verify|auth|support)\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/gi,
+          desc: 'Uses URL shorteners, raw IP addresses, or deceptive hyphenated domain names.'
+        }
+      ];
+
+      function evaluateThreatCues(text) {
+        const detectedCues = [];
+        for (let i = 0; i < THREAT_RULES.length; i++) {
+          const rule = THREAT_RULES[i];
+          const matches = text.match(rule.regex);
+          if (matches && matches.length > 0) {
+            // Deduplicate matches
+            const uniqueMatches = Array.from(new Set(matches.map(m => m.trim().toLowerCase())));
+            detectedCues.push({
+              id: rule.id,
+              title: rule.title,
+              severity: rule.severity,
+              desc: rule.desc,
+              matches: uniqueMatches
+            });
+          }
+        }
+        return detectedCues;
+      }
+
+      // -----------------------------------------------------------------------
+      // 6. Risk Decision Logic & Classification
+      // -----------------------------------------------------------------------
+      function determineRiskClassification(mlProb, detectedCues, text) {
+        const highSeverityCount = detectedCues.filter(c => c.severity === 'high').length;
+        const totalCuesCount = detectedCues.length;
+
+        // Check if message is primarily commercial promotion without phishing intent
+        const isCommercialPromo = /\b(flash sale|code [a-z0-9]+|unsubscribe|reply stop|off all|collection|shop now)\b/i.test(text);
+
+        let status = 'low';
+        let title = 'Likely legitimate';
+        let summary = 'No high-risk threat indicators or credential harvesting patterns were found in this message.';
+
+        if (mlProb >= 0.70 || (mlProb >= 0.45 && highSeverityCount >= 2)) {
+          status = 'high';
+          title = 'Potential phishing';
+          summary = 'Strong indicators of smishing or fraudulent credential harvesting detected. Exercise extreme caution.';
+        } else if (mlProb >= 0.35 || totalCuesCount >= 1 || (isCommercialPromo && mlProb >= 0.50)) {
+          status = 'medium';
+          title = 'Suspicious message';
+          if (isCommercialPromo && highSeverityCount === 0) {
+            summary = 'Contains marketing or promotional broadcast patterns. While not an explicit phishing scam, verify offers independently.';
+          } else {
+            summary = 'Contains subtle urgency or cautionary keywords. Verify the sender independently before taking any action.';
+          }
+        }
+
+        return { status, title, summary };
+      }
+
+      // -----------------------------------------------------------------------
+      // 7. Safe DOM Rendering Helpers (Zero innerHTML with user text)
+      // -----------------------------------------------------------------------
+      function createSafeTextElement(tag, text, className) {
+        const el = document.createElement(tag);
+        if (className) el.className = className;
+        el.textContent = text;
+        return el;
+      }
+
+      function renderResults(result, originalText) {
+        const { classification, mlProb, cues, attributions } = result;
+
+        // 1. Update Risk Banner Style & Text
+        riskBanner.className = 'risk-banner risk-' + classification.status;
+        riskBadgeLabel.textContent = 'Classification: ' + classification.status.toUpperCase();
+        riskClassificationTitle.textContent = classification.title;
+        riskClassificationSummary.textContent = classification.summary;
+
+        // Update Banner Icon
+        riskStatusIcon.innerHTML = '';
+        const iconSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        iconSvg.setAttribute('viewBox', '0 0 24 24');
+        iconSvg.setAttribute('fill', 'none');
+        iconSvg.setAttribute('stroke', 'currentColor');
+        iconSvg.setAttribute('stroke-width', '2.5');
+        iconSvg.setAttribute('stroke-linecap', 'round');
+        iconSvg.setAttribute('stroke-linejoin', 'round');
+        iconSvg.setAttribute('aria-hidden', 'true');
+
+        if (classification.status === 'high') {
+          iconSvg.innerHTML = '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
+        } else if (classification.status === 'medium') {
+          iconSvg.innerHTML = '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>';
+        } else {
+          iconSvg.innerHTML = '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>';
+        }
+        riskStatusIcon.appendChild(iconSvg);
+
+        // 2. Animate Circular Progress Meter
+        const percent = Math.round(mlProb * 100);
+        gaugePercentDisplay.textContent = percent + '%';
+        const circumference = 2 * Math.PI * 28; // ~175.93
+        const offset = circumference - (percent / 100) * circumference;
+        gaugeFillCircle.style.strokeDashoffset = offset;
+
+        // 3. Render Warning Signs Cues
+        warningCuesContainer.innerHTML = '';
+        if (cues.length === 0) {
+          const noCuesEl = document.createElement('div');
+          noCuesEl.className = 'no-cues-card';
+          noCuesEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+          const textSpan = createSafeTextElement('span', 'No explicit threat cues (suspension demands, OTP harvesting, or suspicious links) detected in this text.');
+          noCuesEl.appendChild(textSpan);
+          warningCuesContainer.appendChild(noCuesEl);
+        } else {
+          for (let i = 0; i < cues.length; i++) {
+            const cue = cues[i];
+            const card = document.createElement('div');
+            card.className = 'cue-card cue-' + cue.severity;
+
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'cue-icon';
+            iconDiv.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+            card.appendChild(iconDiv);
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'cue-content';
+
+            const titleRow = document.createElement('div');
+            titleRow.className = 'cue-title-row';
+            titleRow.appendChild(createSafeTextElement('span', cue.title, 'cue-title'));
+            titleRow.appendChild(createSafeTextElement('span', cue.severity.toUpperCase(), 'cue-badge'));
+            contentDiv.appendChild(titleRow);
+
+            contentDiv.appendChild(createSafeTextElement('p', cue.desc, 'cue-desc'));
+
+            const matchesBox = createSafeTextElement('div', 'Matched in text: "' + cue.matches.join('", "') + '"', 'cue-matches');
+            contentDiv.appendChild(matchesBox);
+
+            card.appendChild(contentDiv);
+            warningCuesContainer.appendChild(card);
+          }
+        }
+
+        // 4. Render Explainable Feature Attribution
+        topTokensContainer.innerHTML = '';
+        const top3 = attributions.slice(0, 3);
+        if (top3.length === 0) {
+          const noAttrEl = createSafeTextElement('p', 'No significant vocabulary tokens recognized in the model training dictionary.', 'explainability-intro');
+          topTokensContainer.appendChild(noAttrEl);
+        } else {
+          for (let i = 0; i < top3.length; i++) {
+            const item = top3[i];
+            const row = document.createElement('div');
+            row.className = 'token-attribution-item';
+
+            const wordBox = document.createElement('div');
+            wordBox.className = 'token-word-box';
+            wordBox.appendChild(createSafeTextElement('span', item.token, 'token-pill'));
+
+            const badge = document.createElement('span');
+            badge.className = 'token-direction-badge ' + (item.attribution >= 0 ? 'increases-risk' : 'decreases-risk');
+            badge.textContent = item.attribution >= 0 ? '▲ Increases Risk' : '▼ Decreases Risk';
+            wordBox.appendChild(badge);
+            row.appendChild(wordBox);
+
+            let explanation = 'High statistical association with fraudulent smishing messages.';
+            if (item.attribution < 0) {
+              explanation = 'Associated with legitimate conversational communication.';
+            } else if (item.token === 'stop' || item.token === 'unsubscribe') {
+              explanation = 'Common in automated broadcasts and promotional SMS.';
+            } else if (item.token === 'verify' || item.token === 'account' || item.token === 'alert') {
+              explanation = 'Urgent verification keyword frequently leveraged in smishing attempts.';
+            }
+            row.appendChild(createSafeTextElement('span', explanation, 'token-explanation-text'));
+
+            const weightVal = createSafeTextElement('span', 'Weight: ' + (item.attribution >= 0 ? '+' : '') + item.attribution.toFixed(3), 'token-weight-val');
+            row.appendChild(weightVal);
+
+            topTokensContainer.appendChild(row);
+          }
+        }
+
+        // 5. Render Recommended Action Steps
+        recommendationsList.innerHTML = '';
+        const recs = [];
+        if (classification.status === 'high') {
+          recs.push({ type: 'rec-danger', icon: 'cross', text: 'Do not click links or open any web address contained in this message.' });
+          recs.push({ type: 'rec-danger', icon: 'cross', text: 'Never reply with verification codes, passwords, PINs, or banking details.' });
+          recs.push({ type: 'rec-warn', icon: 'alert', text: 'Verify the claim independently: contact the organization through their official app or website URL.' });
+          recs.push({ type: 'rec-safe', icon: 'check', text: 'Block the sender and report the message to your mobile provider (e.g., forward SMS to 7726).' });
+        } else if (classification.status === 'medium') {
+          recs.push({ type: 'rec-warn', icon: 'alert', text: 'Check the sender identity carefully before engaging or replying.' });
+          recs.push({ type: 'rec-warn', icon: 'alert', text: 'Avoid clicking embedded links; navigate to the official service manually instead.' });
+          recs.push({ type: 'rec-safe', icon: 'check', text: 'If this is a marketing broadcast, verify promotional codes directly on official websites.' });
+        } else {
+          recs.push({ type: 'rec-safe', icon: 'check', text: 'Message appears conversational and legitimate based on syntax and vocabulary.' });
+          recs.push({ type: 'rec-warn', icon: 'alert', text: 'Remember that model classification is not an absolute guarantee. Always stay vigilant.' });
+        }
+
+        for (let i = 0; i < recs.length; i++) {
+          const rec = recs[i];
+          const li = document.createElement('li');
+          li.className = 'recommendation-item ' + rec.type;
+
+          const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          svgEl.setAttribute('viewBox', '0 0 24 24');
+          svgEl.setAttribute('fill', 'none');
+          svgEl.setAttribute('stroke', 'currentColor');
+          svgEl.setAttribute('stroke-width', '2.5');
+          svgEl.setAttribute('stroke-linecap', 'round');
+          svgEl.setAttribute('stroke-linejoin', 'round');
+          svgEl.setAttribute('aria-hidden', 'true');
+
+          if (rec.icon === 'cross') {
+            svgEl.innerHTML = '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>';
+          } else if (rec.icon === 'alert') {
+            svgEl.innerHTML = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
+          } else {
+            svgEl.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+          }
+
+          li.appendChild(svgEl);
+          li.appendChild(createSafeTextElement('span', rec.text));
+          recommendationsList.appendChild(li);
+        }
+
+        // Reveal Results Container
+        resultsContainer.classList.add('active');
+        liveAnnouncer.textContent = 'Analysis complete. Risk assessment: ' + classification.title + ' with estimated risk score ' + percent + '%.';
+        resultsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      // -----------------------------------------------------------------------
+      // 8. Event Handlers & User Interaction
+      // -----------------------------------------------------------------------
+      function updateCharCount() {
+        const len = messageInput.value.length;
+        charCountDisplay.textContent = len.toLocaleString() + ' / 2,000 characters';
+        if (len > 1800) {
+          charCountDisplay.className = 'char-counter limit-reached';
+        } else if (len > 1200) {
+          charCountDisplay.className = 'char-counter warning';
+        } else {
+          charCountDisplay.className = 'char-counter';
+        }
+
+        if (len > 0) {
+          inputError.classList.remove('visible');
+        }
+      }
+
+      function handleClear() {
+        messageInput.value = '';
+        updateCharCount();
+        resultsContainer.classList.remove('active');
+        inputError.classList.remove('visible');
+        messageInput.focus();
+        liveAnnouncer.textContent = 'Message input cleared.';
+      }
+
+      function loadExample(text) {
+        messageInput.value = text;
+        updateCharCount();
+        resultsContainer.classList.remove('active');
+        inputError.classList.remove('visible');
+        messageInput.focus();
+        liveAnnouncer.textContent = 'Example message loaded into input field.';
+      }
+
+      async function handleAnalyze() {
+        const text = messageInput.value.trim();
+        if (!text) {
+          inputErrorText.textContent = 'Please enter or paste a message to analyze.';
+          inputError.classList.add('visible');
+          messageInput.focus();
+          return;
+        }
+
+        if (text.length < 5) {
+          inputErrorText.textContent = 'Message is too short to analyze reliably.';
+          inputError.classList.add('visible');
+          messageInput.focus();
+          return;
+        }
+
+        inputError.classList.remove('visible');
+        btnAnalyze.disabled = true;
+        btnAnalyze.classList.add('loading');
+        liveAnnouncer.textContent = 'Running model inference...';
+
+        // Provide micro-delay for smooth DOM update
+        await new Promise(resolve => setTimeout(resolve, 80));
+
+        try {
+          const inference = runModelInference(text);
+          const cues = evaluateThreatCues(text);
+          const classification = determineRiskClassification(inference.probability, cues, text);
+
+          renderResults({
+            classification,
+            mlProb: inference.probability,
+            cues,
+            attributions: inference.attributions
+          }, text);
+        } catch (err) {
+          console.error('[PhishShift] Inference error:', err);
+          inputErrorText.textContent = 'An error occurred during analysis. Please try again.';
+          inputError.classList.add('visible');
+        } finally {
+          btnAnalyze.disabled = false;
+          btnAnalyze.classList.remove('loading');
+        }
+      }
+
+      // Event Listeners
+      messageInput.addEventListener('input', updateCharCount);
+
+      messageInput.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          handleAnalyze();
+        }
+      });
+
+      btnAnalyze.addEventListener('click', handleAnalyze);
+      btnClear.addEventListener('click', handleClear);
+
+      btnExamplePhish.addEventListener('click', () => loadExample(SAMPLE_MESSAGES.phish));
+      btnExamplePromo.addEventListener('click', () => loadExample(SAMPLE_MESSAGES.promo));
+      btnExampleLegit.addEventListener('click', () => loadExample(SAMPLE_MESSAGES.legit));
+
+    })();
+  </script>
+</body>
+</html>
