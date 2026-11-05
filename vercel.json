@@ -2,12 +2,5 @@
   "version": 2,
   "builds": [
     { "src": "next.config.mjs", "use": "@vercel/next" }
-  ],
-  "ignore": [
-    "ml/**",
-    "**/*.pkl",
-    "**/*.py",
-    "**/model_early.pkl",
-    "**/model_full.pkl"
   ]
 }
